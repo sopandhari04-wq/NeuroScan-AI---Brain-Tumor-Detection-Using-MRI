@@ -1,8 +1,10 @@
-streamlit
+streamlit==1.35.0
 tensorflow-cpu==2.16.1
-numpy
+numpy==1.26.4
 pillow
 matplotlib
 opencv-python-headless
 reportlab
 nibabel
+h5py
+protobuf==4.25.3
