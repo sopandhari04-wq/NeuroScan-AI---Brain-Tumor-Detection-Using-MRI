@@ -398,7 +398,7 @@ CNN trained on 3,000+ labelled MRI samples.
         import tensorflow as tf
 
         model = tf.keras.models.load_model(
-            "models/brain_tumor_model.h5",
+           "models/new_model.keras",
             compile=False,
             safe_mode=False
         )
