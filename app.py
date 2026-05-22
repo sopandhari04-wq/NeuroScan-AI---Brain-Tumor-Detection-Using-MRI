@@ -400,7 +400,7 @@ CNN trained on 3,000+ labelled MRI samples.
     compile=False
 )
 
-    model = load_model()
+    
 
     
     # ── PDF ────────────────────────────────────────────────────────────────────
@@ -435,6 +435,15 @@ CNN trained on 3,000+ labelled MRI samples.
     uploaded_file = st.file_uploader("", type=["jpg","jpeg","png"], label_visibility="collapsed")
 
     if uploaded_file is not None:
+
+        if "model" not in st.session_state:
+             with st.spinner("Loading AI model..."):
+                st.session_state.model = load_model()
+
+        model = st.session_state.model
+
+        prediction = model.predict(img_array)
+
         img = Image.open(uploaded_file).convert("RGB")
 
         col1, col2, col3 = st.columns([1, 8, 1])
