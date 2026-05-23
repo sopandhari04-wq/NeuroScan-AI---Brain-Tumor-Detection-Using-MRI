@@ -182,70 +182,34 @@ st.markdown("""
 # ── Robust model loader (fixes Keras version mismatch) ─────────────────────────
 @st.cache_resource(show_spinner=False)
 def load_model():
-    import os
-
-    # Attempt 1 — native load (works if versions match)
+    import tensorflow as tf
     try:
-        import tensorflow as tf
-        model = tf.keras.models.load_model(
+        # compile=False skips optimizer deserialization — fixes Keras version mismatch
+        return tf.keras.models.load_model(
             "models/brain_tumor_model.h5",
-            compile=False          # skip optimizer; we only need inference
+            compile=False
         )
-        return model, "tensorflow"
-    except Exception as e1:
-        pass
-
-    # Attempt 2 — h5py raw weights into a rebuilt architecture
-    # (use this if the saved model config is incompatible)
-    try:
-        import tensorflow as tf
-        import h5py
-
-        def build_fallback_cnn(num_classes=4):
-            inputs = tf.keras.Input(shape=(128, 128, 3))
-            x = tf.keras.layers.Conv2D(32, 3, activation="relu", padding="same")(inputs)
-            x = tf.keras.layers.MaxPooling2D()(x)
-            x = tf.keras.layers.Conv2D(64, 3, activation="relu", padding="same")(x)
-            x = tf.keras.layers.MaxPooling2D()(x)
-            x = tf.keras.layers.Conv2D(128, 3, activation="relu", padding="same")(x)
-            x = tf.keras.layers.MaxPooling2D()(x)
-            x = tf.keras.layers.GlobalAveragePooling2D()(x)
-            x = tf.keras.layers.Dense(256, activation="relu")(x)
-            x = tf.keras.layers.Dropout(0.4)(x)
-            outputs = tf.keras.layers.Dense(num_classes, activation="softmax")(x)
-            return tf.keras.Model(inputs, outputs)
-
-        model = build_fallback_cnn()
+    except Exception:
+        # Fallback: load weights only into a fresh model
+        model = tf.keras.Sequential([
+            tf.keras.layers.InputLayer(input_shape=(128, 128, 3)),
+            tf.keras.layers.Conv2D(32, 3, activation="relu", padding="same"),
+            tf.keras.layers.MaxPooling2D(),
+            tf.keras.layers.Conv2D(64, 3, activation="relu", padding="same"),
+            tf.keras.layers.MaxPooling2D(),
+            tf.keras.layers.Conv2D(128, 3, activation="relu", padding="same"),
+            tf.keras.layers.MaxPooling2D(),
+            tf.keras.layers.GlobalAveragePooling2D(),
+            tf.keras.layers.Dense(256, activation="relu"),
+            tf.keras.layers.Dropout(0.4),
+            tf.keras.layers.Dense(4, activation="softmax"),
+        ])
         model.load_weights("models/brain_tumor_model.h5", by_name=False, skip_mismatch=True)
-        return model, "weights_only"
-    except Exception as e2:
-        pass
-
-    # Attempt 3 — TFLite (smallest footprint, version-agnostic)
-    try:
-        import tensorflow as tf
-        interpreter = tf.lite.Interpreter(model_path="models/brain_tumor_model.tflite")
-        interpreter.allocate_tensors()
-        return interpreter, "tflite"
-    except Exception as e3:
-        raise RuntimeError(
-            "Could not load model via any method.\n"
-            f"TF load: {e1}\nWeights: {e2}\nTFLite: {e3}"
-        )
+        return model
 
 def run_inference(model_obj, model_type, img_array):
     """Run prediction regardless of how the model was loaded."""
-    import tensorflow as tf
-
-    if model_type in ("tensorflow", "weights_only"):
-        return model_obj.predict(img_array, verbose=0)[0]
-
-    elif model_type == "tflite":
-        inp = model_obj.get_input_details()[0]
-        out = model_obj.get_output_details()[0]
-        model_obj.set_tensor(inp["index"], img_array.astype(np.float32))
-        model_obj.invoke()
-        return model_obj.get_tensor(out["index"])[0]
+    return model_obj.predict(img_array, verbose=0)[0]
 
 CLASS_NAMES   = ["glioma", "meningioma", "notumor", "pituitary"]
 CLASS_DISPLAY = {"glioma":"Glioma","meningioma":"Meningioma","notumor":"No Tumor","pituitary":"Pituitary"}
@@ -254,9 +218,9 @@ CLASS_COLORS  = {"glioma":"#FF6B6B","meningioma":"#FFB347","notumor":"#00C8B4","
 # ── Load model with status ─────────────────────────────────────────────────────
 with st.spinner("Loading model…"):
     try:
-        model_obj, model_type = load_model()
+        model_obj = load_model()
         load_ok = True
-    except RuntimeError as err:
+    except Exception as err:
         load_ok = False
         st.error(f"Model failed to load: {err}")
 
@@ -280,7 +244,7 @@ if uploaded_file and load_ok:
     img_input = np.expand_dims(arr, axis=0)           # (1,128,128,3)
 
     with st.spinner("Analysing scan…"):
-        probs = run_inference(model_obj, model_type, img_input)
+        probs = run_inference(model_obj, None, img_input)
 
     pred_idx  = int(np.argmax(probs))
     pred_cls  = CLASS_NAMES[pred_idx]
