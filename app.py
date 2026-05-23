@@ -398,7 +398,7 @@ CNN trained on 3,000+ labelled MRI samples.
     def load_model():
         import tensorflow as tf
         model = tf.keras.models.load_model(
-            "models/new_model.h5",
+            "models/new_model.keras",
             compile=False
         )
         return model
