@@ -379,42 +379,42 @@ Highlights the exact brain region the AI focused on.
     # ── Keras model (for Grad-CAM only) ───────────────────────────────────────
     @st.cache_resource
     def load_keras_model():
-        # Build using Functional API so input is always defined
-        inputs     = tf.keras.Input(shape=(128, 128, 3))
         base_model = tf.keras.applications.MobileNetV2(
             weights='imagenet', include_top=False, input_shape=(128, 128, 3)
         )
         base_model.trainable = False
-        x = base_model(inputs, training=False)
-        x = tf.keras.layers.GlobalAveragePooling2D()(x)
-        x = tf.keras.layers.Dense(128, activation='relu')(x)
-        out = tf.keras.layers.Dense(4, activation='softmax')(x)
-        model = tf.keras.Model(inputs=inputs, outputs=out)
+        inputs = tf.keras.Input(shape=(128, 128, 3))
+        x      = base_model(inputs, training=False)
+        x      = tf.keras.layers.GlobalAveragePooling2D()(x)
+        x      = tf.keras.layers.Dense(128, activation='relu')(x)
+        out    = tf.keras.layers.Dense(4, activation='softmax')(x)
+        model  = tf.keras.Model(inputs=inputs, outputs=out)
         model.load_weights("models/brain_tumor_model.h5", by_name=False, skip_mismatch=True)
-        return model, base_model
 
-    # ── Grad-CAM function ──────────────────────────────────────────────────────
-    def compute_gradcam(keras_model, base_model, img_array, pred_idx):
-        # Use the last conv layer of MobileNetV2 directly
-        last_conv_layer = base_model.get_layer('out_relu')
-
-        grad_model = tf.keras.models.Model(
-            inputs=keras_model.input,
-            outputs=[last_conv_layer.output, keras_model.output]
+        # Sub-model: outputs feature maps from last conv layer
+        feat_model = tf.keras.Model(
+            inputs=inputs,
+            outputs=base_model.get_layer('out_relu').output
         )
+        return model, feat_model
 
-        img_tensor = tf.cast(img_array, tf.float32)
+    # ── Grad-CAM function (Keras 3 compatible) ─────────────────────────────────
+    def compute_gradcam(keras_model, feat_model, img_array, pred_idx):
+        img_tensor = tf.constant(img_array, dtype=tf.float32)
+
         with tf.GradientTape() as tape:
             tape.watch(img_tensor)
-            conv_outputs, predictions = grad_model(img_tensor, training=False)
-            tape.watch(conv_outputs)
-            class_score = predictions[:, pred_idx]
+            features     = feat_model(img_tensor, training=False)   # (1,4,4,1280)
+            tape.watch(features)
+            preds        = keras_model(img_tensor, training=False)
+            class_score  = preds[:, pred_idx]
 
-        grads   = tape.gradient(class_score, conv_outputs)
-        weights = tf.reduce_mean(grads, axis=(0, 1, 2))
-        cam     = tf.reduce_sum(tf.multiply(weights, conv_outputs[0]), axis=-1)
+        grads   = tape.gradient(class_score, features)              # (1,4,4,1280)
+        weights = tf.reduce_mean(grads, axis=(0, 1, 2))             # (1280,)
+        cam     = tf.reduce_sum(features[0] * weights, axis=-1)     # (4,4)
         cam     = tf.nn.relu(cam).numpy()
-        cam     = (cam - cam.min()) / (cam.max() - cam.min() + 1e-8)
+        if cam.max() > 0:
+            cam = (cam - cam.min()) / (cam.max() - cam.min() + 1e-8)
         return cam
 
     def overlay_gradcam(pil_img, cam):
@@ -552,8 +552,8 @@ Highlights the exact brain region the AI focused on.
 
         with st.spinner("Generating Grad-CAM heatmap…"):
             try:
-                keras_model, base_model     = load_keras_model()
-                cam                          = compute_gradcam(keras_model, base_model, img_array, predicted_idx)
+                keras_model, feat_model      = load_keras_model()
+                cam                          = compute_gradcam(keras_model, feat_model, img_array, predicted_idx)
                 overlay_img, heatmap_img     = overlay_gradcam(img, cam)
 
                 col_a, col_b = st.columns(2)
