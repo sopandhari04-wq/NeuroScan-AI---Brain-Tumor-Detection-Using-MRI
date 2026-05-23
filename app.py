@@ -389,6 +389,9 @@ Highlights the exact brain region the AI focused on.
             tf.keras.layers.Dense(128, activation='relu'),
             tf.keras.layers.Dense(4, activation='softmax')
         ])
+        # Dummy pass to build the model before loading weights
+        dummy = np.zeros((1, 128, 128, 3), dtype=np.float32)
+        model(dummy, training=False)
         model.load_weights("models/brain_tumor_model.h5", by_name=False, skip_mismatch=True)
         return model
 
