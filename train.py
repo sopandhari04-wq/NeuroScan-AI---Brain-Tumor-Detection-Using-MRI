@@ -4,24 +4,25 @@ from tensorflow.keras.applications import MobileNetV2
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, GlobalAveragePooling2D
 from tensorflow.keras.optimizers import Adam
+import os
 
 # Dataset paths
 train_dir = "dataset/Training"
-test_dir = "dataset/Testing"
+test_dir  = "dataset/Testing"
 
 # Data preprocessing
 datagen = ImageDataGenerator(rescale=1./255)
 
 train_generator = datagen.flow_from_directory(
     train_dir,
-    target_size=(128,128),
+    target_size=(128, 128),
     batch_size=32,
     class_mode='categorical'
 )
 
 validation_generator = datagen.flow_from_directory(
     test_dir,
-    target_size=(128,128),
+    target_size=(128, 128),
     batch_size=32,
     class_mode='categorical'
 )
@@ -30,9 +31,8 @@ validation_generator = datagen.flow_from_directory(
 base_model = MobileNetV2(
     weights='imagenet',
     include_top=False,
-    input_shape=(128,128,3)
+    input_shape=(128, 128, 3)
 )
-
 base_model.trainable = False
 
 # Build model
@@ -57,7 +57,7 @@ history = model.fit(
     epochs=10
 )
 
-# Save trained model
-model.save("models/brain_tumor_model.h5")
-
-print("Model training completed and saved.")
+# Save as .h5 (works on all Keras versions)
+os.makedirs("models", exist_ok=True)
+model.save("models/new_model.h5", save_format="h5")
+print("✅ Model saved as models/new_model.h5")
