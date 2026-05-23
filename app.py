@@ -376,7 +376,7 @@ Highlights the exact brain region the AI focused on.
         interpreter.invoke()
         return interpreter.get_tensor(output_details[0]['index'])[0]
 
-    # ── Keras model (for Grad-CAM only) ───────────────────────────────────────
+    # ── Keras model (for Grad-CAM only) — FIXED with dummy forward pass ───────
     @st.cache_resource
     def load_keras_model():
         base_model = tf.keras.applications.MobileNetV2(
@@ -389,7 +389,7 @@ Highlights the exact brain region the AI focused on.
             tf.keras.layers.Dense(128, activation='relu'),
             tf.keras.layers.Dense(4, activation='softmax')
         ])
-        # Dummy pass to build the model before loading weights
+        # Dummy pass to build the model BEFORE loading weights
         dummy = np.zeros((1, 128, 128, 3), dtype=np.float32)
         model(dummy, training=False)
         model.load_weights("models/brain_tumor_model.h5", by_name=False, skip_mismatch=True)
@@ -397,8 +397,7 @@ Highlights the exact brain region the AI focused on.
 
     # ── Grad-CAM function ──────────────────────────────────────────────────────
     def compute_gradcam(keras_model, img_array, pred_idx):
-        # Target last conv layer of MobileNetV2
-        last_conv_layer = keras_model.get_layer('mobilenetv2_1.00_128')
+        last_conv_layer  = keras_model.get_layer('mobilenetv2_1.00_128')
         last_conv_output = last_conv_layer.get_layer('out_relu').output
 
         grad_model = tf.keras.models.Model(
@@ -418,17 +417,12 @@ Highlights the exact brain region the AI focused on.
         return cam
 
     def overlay_gradcam(pil_img, cam):
-        # Resize CAM to image size
         cam_resized = cv2.resize(cam, (pil_img.width, pil_img.height))
         cam_uint8   = np.uint8(255 * cam_resized)
-
-        # Apply jet colormap
-        colormap  = plt.get_cmap('jet')
-        heatmap   = np.uint8(colormap(cam_uint8 / 255.0) * 255)[..., :3]
-
-        # Overlay on original
-        original  = np.array(pil_img.convert("RGB"), dtype=np.float32)
-        overlay   = (0.45 * heatmap + 0.55 * original).astype(np.uint8)
+        colormap    = plt.get_cmap('jet')
+        heatmap     = np.uint8(colormap(cam_uint8 / 255.0) * 255)[..., :3]
+        original    = np.array(pil_img.convert("RGB"), dtype=np.float32)
+        overlay     = (0.45 * heatmap + 0.55 * original).astype(np.uint8)
         return Image.fromarray(overlay), Image.fromarray(heatmap)
 
     # ── PDF ────────────────────────────────────────────────────────────────────
@@ -557,8 +551,8 @@ Highlights the exact brain region the AI focused on.
 
         with st.spinner("Generating Grad-CAM heatmap…"):
             try:
-                keras_model = load_keras_model()
-                cam         = compute_gradcam(keras_model, img_array, predicted_idx)
+                keras_model              = load_keras_model()
+                cam                      = compute_gradcam(keras_model, img_array, predicted_idx)
                 overlay_img, heatmap_img = overlay_gradcam(img, cam)
 
                 col_a, col_b = st.columns(2)
@@ -569,7 +563,6 @@ Highlights the exact brain region the AI focused on.
                     st.markdown('<p style="font-size:0.65rem;letter-spacing:0.2em;color:#3A5060;text-transform:uppercase;margin-bottom:0.4rem;">Grad-CAM Overlay</p>', unsafe_allow_html=True)
                     st.image(overlay_img, use_container_width=True)
 
-                # Explanation card
                 st.markdown(f"""
                 <div style="padding:1rem 1.4rem;border-radius:12px;
                             background:rgba(0,200,180,0.04);
