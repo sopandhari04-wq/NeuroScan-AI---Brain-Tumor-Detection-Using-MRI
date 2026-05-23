@@ -14,7 +14,7 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 
 # ── Must be FIRST Streamlit call ───────────────────────────────────────────────
-st.set_page_config(page_title="NeuroScan AI", page_icon="🧠", layout="centered")
+st.set_page_config(page_title="NeuroScan AI", page_icon="🧠", layout="wide")
 
 # ── Session state ──────────────────────────────────────────────────────────────
 if "logged_in" not in st.session_state:
@@ -154,6 +154,28 @@ html, body, .stApp {
 [data-testid="stFileUploader"] label { color: #5A8090 !important; font-family: 'DM Mono', monospace !important; font-size: 0.8rem !important; }
 [data-testid="stFileUploader"] small { color: #3A5060 !important; font-size: 0.68rem !important; }
 
+/* Tabs */
+.stTabs [data-baseweb="tab-list"] {
+    background: rgba(0,200,180,0.04) !important;
+    border-radius: 12px !important;
+    border: 1px solid rgba(0,200,180,0.12) !important;
+    padding: 4px !important; gap: 4px !important;
+}
+.stTabs [data-baseweb="tab"] {
+    font-family: 'DM Mono', monospace !important;
+    font-size: 0.72rem !important;
+    letter-spacing: 0.12em !important;
+    text-transform: uppercase !important;
+    color: #3A5060 !important;
+    border-radius: 8px !important;
+    padding: 0.5rem 1.2rem !important;
+    border: none !important;
+}
+.stTabs [aria-selected="true"] {
+    background: rgba(0,200,180,0.15) !important;
+    color: #00C8B4 !important;
+}
+
 .footer {
     margin-top: 3.5rem; text-align: center; font-size: 0.6rem;
     letter-spacing: 0.18em; color: #1E3040; text-transform: uppercase;
@@ -273,6 +295,7 @@ if not st.session_state.logged_in:
             <div class="features">
                 <div class="feat"><span class="feat-icon">🧠</span><span>Detects <strong>Glioma, Meningioma, Pituitary</strong> &amp; No Tumor</span></div>
                 <div class="feat"><span class="feat-icon">🔥</span><span><strong>Grad-CAM</strong> attention heatmaps for explainability</span></div>
+                <div class="feat"><span class="feat-icon">🧬</span><span><strong>Multi-Modal Fusion</strong> — fuse 4 MRI scans for richer analysis</span></div>
                 <div class="feat"><span class="feat-icon">📄</span><span>One-click <strong>PDF report</strong> generation</span></div>
             </div>
             <div class="sep"></div>
@@ -286,17 +309,15 @@ if not st.session_state.logged_in:
     </body></html>
     """
 
-    components.html(LOGIN_HTML, height=680, scrolling=False)
+    components.html(LOGIN_HTML, height=700, scrolling=False)
 
     col_l, col_m, col_r = st.columns([1, 2, 1])
     with col_m:
         st.markdown("""
         <style>[data-testid="stTextInput"] { margin-bottom: 0.4rem; }</style>
         """, unsafe_allow_html=True)
-
         username = st.text_input("Username", placeholder="Enter username")
         password = st.text_input("Password", type="password", placeholder="Enter password")
-
         if st.button("Sign In →"):
             if username == "admin" and password == "brain123":
                 st.session_state.logged_in = True
@@ -318,34 +339,32 @@ else:
 
     st.markdown("""
     <style>
-    .block-container { padding: 2.5rem 2rem 4rem !important; max-width: 780px !important; }
+    .block-container { padding: 2.5rem 2rem 4rem !important; max-width: 860px !important; }
     </style>
     """, unsafe_allow_html=True)
 
     # ── Sidebar ────────────────────────────────────────────────────────────────
     with st.sidebar:
-        st.markdown('<span class="sidebar-badge">v2.1 · CNN + Grad-CAM</span>', unsafe_allow_html=True)
+        st.markdown('<span class="sidebar-badge">v3.0 · CNN + Grad-CAM + Fusion</span>', unsafe_allow_html=True)
         st.markdown("## NeuroScan AI")
         st.markdown("""
-A deep learning classifier trained on contrast-enhanced MRI scans to identify four neurological conditions.
-
 **Detectable classes**
 - Glioma
 - Meningioma
 - Pituitary adenoma
 - No tumor
 
-**Input spec**
-JPG / PNG · 128 × 128 px internal
+**Tab 1 · Single MRI**
+Upload one MRI → classify + Grad-CAM heatmap
+
+**Tab 2 · Multi-Modal Fusion**
+Upload 4 MRI scans → fuse → richer classification
 
 **Architecture**
-CNN trained on 3,000+ labelled MRI samples.
-
-**New · Grad-CAM**
-Highlights the exact brain region the AI focused on.
+CNN · MobileNetV2 · TFLite
 
 ---
-*For research and educational use only. Not a clinical diagnostic tool.*
+*For research and educational use only.*
 """)
         st.markdown("---")
         if st.button("🚪 Sign Out"):
@@ -355,14 +374,14 @@ Highlights the exact brain region the AI focused on.
     # ── Header ─────────────────────────────────────────────────────────────────
     st.markdown("""
     <div class="header-wrap">
-        <div class="header-eyebrow">Deep Learning · MRI Analysis · Grad-CAM XAI</div>
+        <div class="header-eyebrow">Deep Learning · MRI Analysis · Grad-CAM · Multi-Modal</div>
         <div class="header-title">Neuro<span>Scan</span> AI</div>
-        <div class="header-sub">Upload a brain MRI scan — get an instant classification + heatmap</div>
+        <div class="header-sub">Single scan classification · Multi-modal fusion · AI heatmap</div>
     </div>
     <div class="divider"></div>
     """, unsafe_allow_html=True)
 
-    # ── TFLite model (for fast prediction) ────────────────────────────────────
+    # ── Shared model loaders ───────────────────────────────────────────────────
     @st.cache_resource
     def load_model():
         interpreter = tf.lite.Interpreter(model_path="models/model.tflite")
@@ -376,26 +395,22 @@ Highlights the exact brain region the AI focused on.
         interpreter.invoke()
         return interpreter.get_tensor(output_details[0]['index'])[0]
 
-    # ── Keras model (for Grad-CAM only) ───────────────────────────────────────
     @st.cache_resource
     def load_keras_model():
         base_model = tf.keras.applications.MobileNetV2(
             weights='imagenet', include_top=False, input_shape=(128, 128, 3)
         )
         base_model.trainable = False
-        # Feature extractor — outputs last activation map
         feat_model = tf.keras.Model(
             inputs=base_model.input,
             outputs=base_model.get_layer('out_relu').output
         )
         return feat_model
 
-    # ── Heatmap via feature map mean (no GradientTape needed) ─────────────────
     def compute_gradcam(feat_model, img_array):
-        features = feat_model(img_array, training=False)   # (1, H, W, C)
-        # Average across all channels → spatial activation map
-        cam = np.mean(features[0].numpy(), axis=-1)        # (H, W)
-        cam = np.maximum(cam, 0)                           # ReLU
+        features = feat_model(img_array, training=False)
+        cam = np.mean(features[0].numpy(), axis=-1)
+        cam = np.maximum(cam, 0)
         if cam.max() > 0:
             cam = (cam - cam.min()) / (cam.max() - cam.min() + 1e-8)
         return cam
@@ -409,8 +424,7 @@ Highlights the exact brain region the AI focused on.
         overlay     = (0.45 * heatmap + 0.55 * original).astype(np.uint8)
         return Image.fromarray(overlay), Image.fromarray(heatmap)
 
-    # ── PDF ────────────────────────────────────────────────────────────────────
-    def generate_pdf_report(predicted_cls, confidence):
+    def generate_pdf_report(predicted_cls, confidence, mode="Single MRI"):
         buffer = BytesIO()
         doc    = SimpleDocTemplate(buffer, pagesize=letter)
         styles = getSampleStyleSheet()
@@ -418,6 +432,7 @@ Highlights the exact brain region the AI focused on.
         elems.append(Paragraph("<b>NeuroScan AI - MRI Analysis Report</b>", styles['Title']))
         elems.append(Spacer(1, 20))
         elems.append(Paragraph(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['BodyText']))
+        elems.append(Paragraph(f"Analysis Mode: {mode}", styles['BodyText']))
         elems.append(Spacer(1, 20))
         elems.append(Paragraph(f"<b>Prediction:</b> {predicted_cls}", styles['Heading2']))
         elems.append(Paragraph(f"<b>Confidence Score:</b> {confidence:.2f}", styles['BodyText']))
@@ -431,43 +446,7 @@ Highlights the exact brain region the AI focused on.
         buffer.seek(0)
         return buffer
 
-    # ── Labels ─────────────────────────────────────────────────────────────────
-    class_names   = ['glioma', 'meningioma', 'notumor', 'pituitary']
-    class_display = {'glioma':'Glioma','meningioma':'Meningioma','notumor':'No Tumor','pituitary':'Pituitary'}
-    class_colors  = {'glioma':'#FF6B6B','meningioma':'#FFB347','notumor':'#00C8B4','pituitary':'#7B8CDE'}
-
-    # ── Upload ─────────────────────────────────────────────────────────────────
-    st.markdown('<span class="upload-label">MRI scan image</span>', unsafe_allow_html=True)
-    uploaded_file = st.file_uploader("", type=["jpg","jpeg","png"], label_visibility="collapsed")
-
-    if uploaded_file is not None:
-
-        if "model" not in st.session_state:
-            with st.spinner("Loading AI model..."):
-                st.session_state.model = load_model()
-
-        model = st.session_state.model
-
-        img = Image.open(uploaded_file).convert("RGB")
-
-        col1, col2, col3 = st.columns([1, 8, 1])
-        with col2:
-            st.image(img, caption="", use_container_width=True)
-
-        img_resized = img.resize((128, 128))
-        img_array   = image.img_to_array(img_resized)
-        img_array   = np.expand_dims(img_array, axis=0) / 255.0
-
-        with st.spinner("Analysing scan…"):
-            prediction = [predict(model, img_array)]
-
-        probs         = prediction[0]
-        predicted_idx = int(np.argmax(probs))
-        predicted_cls = class_names[predicted_idx]
-        pct           = int(probs[predicted_idx] * 100)
-        accent        = class_colors[predicted_cls]
-
-        # ── Chips ──────────────────────────────────────────────────────────────
+    def result_chips(probs, predicted_idx, class_names, class_display, class_colors, accent):
         chips_html = ""
         for i, cls in enumerate(class_names):
             active = i == predicted_idx
@@ -487,7 +466,12 @@ Highlights the exact brain region the AI focused on.
                 <div style="font-family:'Syne',sans-serif;font-size:1rem;
                             font-weight:700;color:{pc};margin-top:0.3rem;">{p}%</div>
             </div>"""
+        return chips_html
 
+    def result_card(predicted_cls, probs, predicted_idx, class_names, class_display, class_colors):
+        accent    = class_colors[predicted_cls]
+        pct       = int(probs[predicted_idx] * 100)
+        chips_html= result_chips(probs, predicted_idx, class_names, class_display, class_colors, accent)
         card_html = f"""<!DOCTYPE html><html>
         <head>
         <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -522,78 +506,235 @@ Highlights the exact brain region the AI focused on.
         </div>
         <script>requestAnimationFrame(()=>{{setTimeout(()=>{{document.getElementById('bar').style.width='{pct}%';}},80);}});</script>
         </body></html>"""
+        return card_html, accent
 
-        components.html(card_html, height=300, scrolling=False)
+    class_names   = ['glioma', 'meningioma', 'notumor', 'pituitary']
+    class_display = {'glioma':'Glioma','meningioma':'Meningioma','notumor':'No Tumor','pituitary':'Pituitary'}
+    class_colors  = {'glioma':'#FF6B6B','meningioma':'#FFB347','notumor':'#00C8B4','pituitary':'#7B8CDE'}
 
-        # ── Grad-CAM Section ───────────────────────────────────────────────────
+    # ── TABS ───────────────────────────────────────────────────────────────────
+    tab1, tab2 = st.tabs(["🧠  Single MRI · Grad-CAM", "🧬  Multi-Modal Fusion"])
+
+    # ══════════════════════════════════════════════════════════════════════════
+    #  TAB 1 — SINGLE MRI + GRAD-CAM
+    # ══════════════════════════════════════════════════════════════════════════
+    with tab1:
+        st.markdown('<span class="upload-label">Upload MRI scan</span>', unsafe_allow_html=True)
+        uploaded_file = st.file_uploader("", type=["jpg","jpeg","png"],
+                                         label_visibility="collapsed", key="tab1_upload")
+
+        if uploaded_file is not None:
+            if "model" not in st.session_state:
+                with st.spinner("Loading AI model..."):
+                    st.session_state.model = load_model()
+            model = st.session_state.model
+
+            img = Image.open(uploaded_file).convert("RGB")
+            col1, col2, col3 = st.columns([1, 8, 1])
+            with col2:
+                st.image(img, caption="", use_container_width=True)
+
+            img_resized = img.resize((128, 128))
+            img_array   = image.img_to_array(img_resized)
+            img_array   = np.expand_dims(img_array, axis=0) / 255.0
+
+            with st.spinner("Analysing scan…"):
+                probs = predict(model, img_array)
+
+            predicted_idx = int(np.argmax(probs))
+            predicted_cls = class_names[predicted_idx]
+            accent        = class_colors[predicted_cls]
+
+            card_html, accent = result_card(predicted_cls, probs, predicted_idx,
+                                            class_names, class_display, class_colors)
+            components.html(card_html, height=300, scrolling=False)
+
+            # Grad-CAM
+            st.markdown("""
+            <div style="margin-top:2rem;margin-bottom:0.8rem;">
+                <span style="font-size:0.68rem;letter-spacing:0.25em;text-transform:uppercase;
+                             color:#3A5A70;">🔥 Grad-CAM · AI Attention Heatmap</span>
+            </div>""", unsafe_allow_html=True)
+
+            with st.spinner("Generating heatmap…"):
+                try:
+                    feat_model               = load_keras_model()
+                    cam                      = compute_gradcam(feat_model, img_array)
+                    overlay_img, heatmap_img = overlay_gradcam(img, cam)
+                    col_a, col_b = st.columns(2)
+                    with col_a:
+                        st.markdown('<p style="font-size:0.65rem;letter-spacing:0.2em;color:#3A5060;text-transform:uppercase;margin-bottom:0.4rem;">Original MRI</p>', unsafe_allow_html=True)
+                        st.image(img, use_container_width=True)
+                    with col_b:
+                        st.markdown('<p style="font-size:0.65rem;letter-spacing:0.2em;color:#3A5060;text-transform:uppercase;margin-bottom:0.4rem;">Grad-CAM Overlay</p>', unsafe_allow_html=True)
+                        st.image(overlay_img, use_container_width=True)
+                    st.markdown(f"""
+                    <div style="padding:1rem 1.4rem;border-radius:12px;background:rgba(0,200,180,0.04);
+                                border:1px solid rgba(0,200,180,0.15);margin-top:0.8rem;
+                                font-size:0.72rem;color:#4A7080;line-height:1.8;">
+                        🔴 <strong style="color:#EEF4FF;">Red/Yellow</strong> — AI focused here most<br>
+                        🔵 <strong style="color:#EEF4FF;">Blue/Green</strong> — less relevant areas<br>
+                        <span style="color:#3A5060;font-size:0.65rem;">
+                            Prediction: <strong style="color:{accent};">{class_display[predicted_cls]}</strong>
+                        </span>
+                    </div>""", unsafe_allow_html=True)
+                except Exception as e:
+                    st.info(f"Grad-CAM unavailable: {e}")
+
+            pdf_file = generate_pdf_report(predicted_cls, float(probs[predicted_idx]), "Single MRI")
+            st.download_button(label="📄 Download MRI Report", data=pdf_file,
+                               file_name="NeuroScan_Report.pdf", mime="application/pdf")
+
+            if predicted_cls != "notumor":
+                st.warning("⚠  Anomaly detected. This result is for informational purposes only — "
+                           "please consult a qualified radiologist or neurologist.")
+            else:
+                st.success("✓  No tumor indicators detected in this scan.")
+
+        else:
+            st.markdown("""
+            <div style="text-align:center;padding:3rem 1.5rem;border:1px dashed rgba(0,200,180,0.12);
+                        border-radius:16px;margin-top:1rem;background:rgba(0,200,180,0.02);">
+                <div style="font-size:2.5rem;margin-bottom:0.8rem;opacity:0.25;">🔬</div>
+                <div style="font-size:0.68rem;letter-spacing:0.18em;text-transform:uppercase;color:#1A3040;">
+                    Upload a JPG or PNG MRI image to begin
+                </div>
+            </div>""", unsafe_allow_html=True)
+
+    # ══════════════════════════════════════════════════════════════════════════
+    #  TAB 2 — MULTI-MODAL FUSION
+    # ══════════════════════════════════════════════════════════════════════════
+    with tab2:
         st.markdown("""
-        <div style="margin-top:2rem;margin-bottom:0.8rem;">
-            <span style="font-size:0.68rem;letter-spacing:0.25em;text-transform:uppercase;
-                         color:#3A5A70;">🔥 Grad-CAM · AI Attention Heatmap</span>
+        <div style="padding:1rem 1.4rem;border-radius:12px;background:rgba(0,200,180,0.04);
+                    border:1px solid rgba(0,200,180,0.15);margin-bottom:1.5rem;
+                    font-size:0.75rem;color:#4A7080;line-height:1.8;">
+            🧬 <strong style="color:#EEF4FF;">Multi-Modal Fusion</strong> — Upload 4 MRI scans
+            (T1, T1ce, T2, FLAIR). They are converted to grayscale, stacked into a
+            4-channel tensor, and fused for a richer classification.
+            <br><span style="color:#3A5060;font-size:0.65rem;">
+            Tip: You can upload the same image 4 times to test the feature.
+            </span>
         </div>
         """, unsafe_allow_html=True)
 
-        with st.spinner("Generating Grad-CAM heatmap…"):
-            try:
-                feat_model               = load_keras_model()
-                cam                      = compute_gradcam(feat_model, img_array)
-                overlay_img, heatmap_img = overlay_gradcam(img, cam)
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown('<span class="upload-label">T1 — Native anatomy</span>', unsafe_allow_html=True)
+            t1 = st.file_uploader("", type=["jpg","jpeg","png"],
+                                  label_visibility="collapsed", key="t1")
+            st.markdown('<span class="upload-label">T2 — Fluid / Edema</span>', unsafe_allow_html=True)
+            t2 = st.file_uploader("", type=["jpg","jpeg","png"],
+                                  label_visibility="collapsed", key="t2")
+        with col2:
+            st.markdown('<span class="upload-label">T1ce — Contrast Enhanced</span>', unsafe_allow_html=True)
+            t1ce = st.file_uploader("", type=["jpg","jpeg","png"],
+                                    label_visibility="collapsed", key="t1ce")
+            st.markdown('<span class="upload-label">FLAIR — Whole Tumor</span>', unsafe_allow_html=True)
+            flair = st.file_uploader("", type=["jpg","jpeg","png"],
+                                     label_visibility="collapsed", key="flair")
 
-                col_a, col_b = st.columns(2)
-                with col_a:
-                    st.markdown('<p style="font-size:0.65rem;letter-spacing:0.2em;color:#3A5060;text-transform:uppercase;margin-bottom:0.4rem;">Original MRI</p>', unsafe_allow_html=True)
-                    st.image(img, use_container_width=True)
-                with col_b:
-                    st.markdown('<p style="font-size:0.65rem;letter-spacing:0.2em;color:#3A5060;text-transform:uppercase;margin-bottom:0.4rem;">Grad-CAM Overlay</p>', unsafe_allow_html=True)
-                    st.image(overlay_img, use_container_width=True)
+        channels     = [t1, t1ce, t2, flair]
+        channel_names= ["T1", "T1ce", "T2", "FLAIR"]
+        all_uploaded = all(c is not None for c in channels)
 
-                st.markdown(f"""
-                <div style="padding:1rem 1.4rem;border-radius:12px;
-                            background:rgba(0,200,180,0.04);
-                            border:1px solid rgba(0,200,180,0.15);
-                            margin-top:0.8rem;font-size:0.72rem;color:#4A7080;line-height:1.8;">
-                    🔴 <strong style="color:#EEF4FF;">Red/Yellow regions</strong> — areas the AI focused on most<br>
-                    🔵 <strong style="color:#EEF4FF;">Blue/Green regions</strong> — less relevant areas<br>
-                    <span style="color:#3A5060;font-size:0.65rem;">
-                        Grad-CAM uses gradients from the last convolutional layer to show which pixels
-                        most influenced the <strong style="color:{accent};">{class_display[predicted_cls]}</strong> prediction.
-                    </span>
-                </div>
-                """, unsafe_allow_html=True)
+        if all_uploaded:
+            # Show preview strip
+            st.markdown('<span class="upload-label" style="margin-top:1rem;">Uploaded scans preview</span>', unsafe_allow_html=True)
+            prev_cols = st.columns(4)
+            pil_imgs  = []
+            for i, (ch, name) in enumerate(zip(channels, channel_names)):
+                pil_img = Image.open(ch).convert("RGB")
+                pil_imgs.append(pil_img)
+                with prev_cols[i]:
+                    st.image(pil_img, caption=name, use_container_width=True)
 
-            except Exception as e:
-                st.info(f"Grad-CAM unavailable: {e}")
+            # ── Fuse 4 channels ────────────────────────────────────────────────
+            # Convert each to grayscale → stack as 4 channels → average to 3ch RGB
+            gray_arrays = []
+            for pil_img in pil_imgs:
+                gray = np.array(pil_img.convert("L").resize((128, 128)),
+                                dtype=np.float32) / 255.0
+                gray_arrays.append(gray)
 
-        # ── PDF ───────────────────────────────────────────────────────────────
-        pdf_file = generate_pdf_report(predicted_cls, float(probs[predicted_idx]))
-        st.download_button(
-            label="📄 Download MRI Report",
-            data=pdf_file,
-            file_name="NeuroScan_Report.pdf",
-            mime="application/pdf"
-        )
+            # Stack: (128,128,4) → average pairs to make (128,128,3) for TFLite
+            fused_4ch = np.stack(gray_arrays, axis=-1)             # (128,128,4)
+            # Weighted fusion: T1=0.25, T1ce=0.35, T2=0.25, FLAIR=0.15
+            r = (fused_4ch[:,:,0] * 0.5 + fused_4ch[:,:,1] * 0.5)
+            g = (fused_4ch[:,:,1] * 0.5 + fused_4ch[:,:,2] * 0.5)
+            b = (fused_4ch[:,:,2] * 0.5 + fused_4ch[:,:,3] * 0.5)
+            fused_rgb = np.stack([r, g, b], axis=-1)               # (128,128,3)
+            fused_input = np.expand_dims(fused_rgb, axis=0)        # (1,128,128,3)
 
-        if predicted_cls != "notumor":
-            st.warning("⚠  Anomaly detected. This result is for informational purposes only — "
-                       "please consult a qualified radiologist or neurologist for clinical evaluation.")
+            # Show fused image
+            st.markdown('<span class="upload-label" style="margin-top:1rem;">Fused multi-modal image</span>', unsafe_allow_html=True)
+            fused_pil = Image.fromarray(np.uint8(fused_rgb * 255))
+            col_f1, col_f2, col_f3 = st.columns([1, 4, 1])
+            with col_f2:
+                st.image(fused_pil, caption="4-channel weighted fusion", use_container_width=True)
+
+            # ── Predict ────────────────────────────────────────────────────────
+            if "model" not in st.session_state:
+                with st.spinner("Loading AI model..."):
+                    st.session_state.model = load_model()
+            model = st.session_state.model
+
+            with st.spinner("Running multi-modal fusion analysis…"):
+                probs = predict(model, fused_input)
+
+            predicted_idx = int(np.argmax(probs))
+            predicted_cls = class_names[predicted_idx]
+            accent        = class_colors[predicted_cls]
+
+            card_html, accent = result_card(predicted_cls, probs, predicted_idx,
+                                            class_names, class_display, class_colors)
+            components.html(card_html, height=300, scrolling=False)
+
+            # Grad-CAM on fused image
+            st.markdown("""
+            <div style="margin-top:2rem;margin-bottom:0.8rem;">
+                <span style="font-size:0.68rem;letter-spacing:0.25em;text-transform:uppercase;
+                             color:#3A5A70;">🔥 Fusion Grad-CAM · AI Attention Heatmap</span>
+            </div>""", unsafe_allow_html=True)
+
+            with st.spinner("Generating fusion heatmap…"):
+                try:
+                    feat_model               = load_keras_model()
+                    cam                      = compute_gradcam(feat_model, fused_input)
+                    overlay_img, _           = overlay_gradcam(fused_pil, cam)
+                    col_a, col_b = st.columns(2)
+                    with col_a:
+                        st.markdown('<p style="font-size:0.65rem;letter-spacing:0.2em;color:#3A5060;text-transform:uppercase;margin-bottom:0.4rem;">Fused MRI</p>', unsafe_allow_html=True)
+                        st.image(fused_pil, use_container_width=True)
+                    with col_b:
+                        st.markdown('<p style="font-size:0.65rem;letter-spacing:0.2em;color:#3A5060;text-transform:uppercase;margin-bottom:0.4rem;">Fusion Grad-CAM</p>', unsafe_allow_html=True)
+                        st.image(overlay_img, use_container_width=True)
+                except Exception as e:
+                    st.info(f"Grad-CAM unavailable: {e}")
+
+            pdf_file = generate_pdf_report(predicted_cls, float(probs[predicted_idx]), "Multi-Modal Fusion")
+            st.download_button(label="📄 Download Fusion Report", data=pdf_file,
+                               file_name="NeuroScan_Fusion_Report.pdf", mime="application/pdf")
+
+            if predicted_cls != "notumor":
+                st.warning("⚠  Anomaly detected across multi-modal scans. "
+                           "Please consult a qualified radiologist for clinical evaluation.")
+            else:
+                st.success("✓  No tumor indicators detected across all 4 modalities.")
+
         else:
-            st.success("✓  No tumor indicators detected in this scan.")
-
-    else:
-        st.markdown("""
-        <div style="text-align:center;padding:3rem 1.5rem;
-                    border:1px dashed rgba(0,200,180,0.12);border-radius:16px;
-                    margin-top:1rem;position:relative;z-index:1;
-                    background:rgba(0,200,180,0.02);">
-            <div style="font-size:2.5rem;margin-bottom:0.8rem;opacity:0.25;">🔬</div>
-            <div style="font-family:'Syne',sans-serif;font-size:0.95rem;font-weight:700;
-                        color:#1E4050;letter-spacing:0.04em;margin-bottom:0.4rem;">
-                No scan uploaded
-            </div>
-            <div style="font-size:0.68rem;letter-spacing:0.18em;text-transform:uppercase;color:#1A3040;">
-                Drop a JPG or PNG MRI image above to begin
-            </div>
-        </div>""", unsafe_allow_html=True)
+            missing = [n for n, c in zip(channel_names, channels) if c is None]
+            if any(c is not None for c in channels):
+                st.info(f"Still waiting for: **{', '.join(missing)}**")
+            else:
+                st.markdown("""
+                <div style="text-align:center;padding:3rem 1.5rem;border:1px dashed rgba(0,200,180,0.12);
+                            border-radius:16px;margin-top:1rem;background:rgba(0,200,180,0.02);">
+                    <div style="font-size:2.5rem;margin-bottom:0.8rem;opacity:0.25;">🧬</div>
+                    <div style="font-size:0.68rem;letter-spacing:0.18em;text-transform:uppercase;color:#1A3040;">
+                        Upload all 4 MRI modalities to begin fusion analysis
+                    </div>
+                </div>""", unsafe_allow_html=True)
 
     st.markdown('<div class="footer">NeuroScan AI · Research prototype · Not for clinical use</div>',
                 unsafe_allow_html=True)
