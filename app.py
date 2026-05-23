@@ -1,159 +1,366 @@
+import cv2
+import matplotlib.cm as cm
 import streamlit as st
 import streamlit.components.v1 as components
+import tensorflow as tf
+from tensorflow.keras.preprocessing import image
 import numpy as np
 from PIL import Image
-import io, base64, warnings
-warnings.filterwarnings("ignore")
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.pagesizes import letter
+from io import BytesIO
+from datetime import datetime
 
-# ── Page config ────────────────────────────────────────────────────────────────
+# ── Must be FIRST Streamlit call ───────────────────────────────────────────────
 st.set_page_config(page_title="NeuroScan AI", page_icon="🧠", layout="centered")
 
-# ── Brain SVG (transparent, embedded) ─────────────────────────────────────────
-BRAIN_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 340" fill="none">
-  <path d="M200 290 C160 290 130 275 110 255 C85 230 70 200 72 170 C74 145 85 125 95 112
-           C80 100 70 82 75 62 C80 40 102 28 125 30 C135 18 152 10 170 12 C185 5 202 8 212 18
-           C225 8 242 5 255 12 C272 8 292 18 300 30 C322 28 342 40 348 62 C353 82 343 100 328 112
-           C338 125 348 145 350 170 C352 200 338 230 312 255 C292 275 260 290 220 290 Z"
-        stroke="#00C8B4" stroke-width="2.5" stroke-opacity="0.18" fill="rgba(0,200,180,0.02)"/>
-  <path d="M200 40 C198 80 198 130 200 180 C202 220 204 255 200 290"
-        stroke="#00C8B4" stroke-width="1" stroke-opacity="0.12" fill="none" stroke-dasharray="4 6"/>
-  <path d="M95 112 C110 108 128 115 138 128 C148 142 145 160 135 170 C122 182 105 178 98 165"
-        stroke="#00C8B4" stroke-width="1.2" stroke-opacity="0.15" fill="none" stroke-linecap="round"/>
-  <path d="M108 155 C120 148 138 152 148 165 C158 178 155 198 142 208 C128 218 110 212 104 198"
-        stroke="#00C8B4" stroke-width="1.2" stroke-opacity="0.15" fill="none" stroke-linecap="round"/>
-  <path d="M140 130 C155 122 175 126 182 140 C190 156 185 175 172 183 C158 190 140 184 134 170"
-        stroke="#00C8B4" stroke-width="1.2" stroke-opacity="0.15" fill="none" stroke-linecap="round"/>
-  <path d="M305 112 C290 108 272 115 262 128 C252 142 255 160 265 170 C278 182 295 178 302 165"
-        stroke="#00C8B4" stroke-width="1.2" stroke-opacity="0.15" fill="none" stroke-linecap="round"/>
-  <path d="M292 155 C280 148 262 152 252 165 C242 178 245 198 258 208 C272 218 290 212 296 198"
-        stroke="#00C8B4" stroke-width="1.2" stroke-opacity="0.15" fill="none" stroke-linecap="round"/>
-  <path d="M260 130 C245 122 225 126 218 140 C210 156 215 175 228 183 C242 190 260 184 266 170"
-        stroke="#00C8B4" stroke-width="1.2" stroke-opacity="0.15" fill="none" stroke-linecap="round"/>
-  <path d="M185 285 C183 298 188 318 200 322 C212 318 216 298 215 285"
-        stroke="#00C8B4" stroke-width="1.8" stroke-opacity="0.18" fill="none" stroke-linecap="round"/>
-  <circle cx="150" cy="145" r="2"   fill="#00C8B4" fill-opacity="0.15"/>
-  <circle cx="250" cy="145" r="2"   fill="#00C8B4" fill-opacity="0.15"/>
-  <circle cx="200" cy="100" r="2"   fill="#00C8B4" fill-opacity="0.15"/>
-  <circle cx="175" cy="195" r="1.5" fill="#00C8B4" fill-opacity="0.12"/>
-  <circle cx="225" cy="195" r="1.5" fill="#00C8B4" fill-opacity="0.12"/>
-</svg>"""
-BRAIN_B64 = "data:image/svg+xml;base64," + base64.b64encode(BRAIN_SVG.encode()).decode()
+# ── Session state ──────────────────────────────────────────────────────────────
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
 
-# ── CSS ────────────────────────────────────────────────────────────────────────
-st.markdown(f"""
+# ══════════════════════════════════════════════════════════════════════════════
+#  SHARED CSS  (applied to every page)
+# ══════════════════════════════════════════════════════════════════════════════
+SHARED_CSS = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap');
 
-*, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-html, body, .stApp {{
+html, body, .stApp {
     background-color: #07090F !important;
     color: #C8D6E5 !important;
     font-family: 'DM Mono', monospace !important;
-}}
-#MainMenu, footer, header {{ visibility: hidden; }}
-.block-container {{ padding: 2.5rem 2rem 4rem !important; max-width: 800px !important; }}
+}
+#MainMenu, footer, header { visibility: hidden; }
 
-/* Brain watermark */
-.stApp {{
-    background-image: url("{BRAIN_B64}") !important;
-    background-repeat: no-repeat !important;
-    background-position: center 140px !important;
-    background-size: 560px !important;
-    background-attachment: fixed !important;
-}}
-.stApp::before {{
+/* ambient glow */
+.stApp::before {
     content: '';
-    position: fixed; top:0; left:0; right:0; bottom:0;
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
     background:
-        radial-gradient(ellipse 60% 40% at 20% 10%, rgba(0,200,180,0.05) 0%, transparent 70%),
-        radial-gradient(ellipse 50% 50% at 80% 80%, rgba(80,120,255,0.04) 0%, transparent 70%);
+        radial-gradient(ellipse 60% 45% at 15% 10%, rgba(0,200,180,0.10) 0%, transparent 70%),
+        radial-gradient(ellipse 50% 50% at 85% 85%, rgba(80,120,255,0.08) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 30% at 50% 50%, rgba(0,200,180,0.04) 0%, transparent 65%);
     pointer-events: none; z-index: 0;
-}}
+}
+/* scanline */
+.stApp::after {
+    content: '';
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 3px,
+        rgba(0,200,180,0.006) 3px, rgba(0,200,180,0.006) 4px);
+    pointer-events: none; z-index: 0;
+}
 
-/* Header */
-.header-wrap {{ text-align:center; padding:2.5rem 0 1.5rem; }}
-.header-eyebrow {{
-    font-size:0.68rem; letter-spacing:0.35em; color:#00C8B4;
-    text-transform:uppercase; margin-bottom:0.8rem;
-}}
-.header-title {{
-    font-family:'Syne',sans-serif;
-    font-size:clamp(2rem,5vw,3.2rem);
-    font-weight:800; color:#EEF4FF; letter-spacing:-0.02em; line-height:1.05;
-}}
-.header-title span {{ color:#00C8B4; }}
-.header-sub {{ margin-top:0.7rem; font-size:0.75rem; color:#4A6070; letter-spacing:0.05em; }}
-.divider {{
-    height:1px;
-    background:linear-gradient(90deg,transparent,#1A3040,transparent);
-    margin:1.8rem 0;
-}}
+.element-container, .stMarkdown, .stSpinner,
+.stButton, .stDownloadButton { position: relative; z-index: 1; }
 
-/* Upload zone */
-.upload-label {{
-    font-size:0.66rem; letter-spacing:0.25em; text-transform:uppercase;
-    color:#3A5A70; margin-bottom:0.4rem; display:block;
-}}
-[data-testid="stFileUploader"] > div {{
-    background: rgba(0,200,180,0.03) !important;
-    border: 1px dashed rgba(0,200,180,0.28) !important;
-    border-radius: 12px !important;
-    transition: all 0.3s !important;
-}}
-[data-testid="stFileUploader"] > div:hover {{
-    background: rgba(0,200,180,0.06) !important;
+/* ── Streamlit input overrides ── */
+[data-testid="stTextInput"] input {
+    background: rgba(0,200,180,0.04) !important;
+    border: 1px solid rgba(0,200,180,0.2) !important;
+    border-radius: 10px !important;
+    color: #EEF4FF !important;
+    font-family: 'DM Mono', monospace !important;
+    font-size: 0.85rem !important;
+    padding: 0.65rem 1rem !important;
+    transition: border-color 0.3s, box-shadow 0.3s !important;
+}
+[data-testid="stTextInput"] input:focus {
+    border-color: #00C8B4 !important;
+    box-shadow: 0 0 0 3px rgba(0,200,180,0.12) !important;
+    outline: none !important;
+}
+[data-testid="stTextInput"] label {
+    color: #3A6070 !important;
+    font-family: 'DM Mono', monospace !important;
+    font-size: 0.68rem !important;
+    letter-spacing: 0.2em !important;
+    text-transform: uppercase !important;
+}
+
+/* ── Primary button ── */
+[data-testid="stButton"] > button {
+    background: linear-gradient(135deg, #00C8B4 0%, #0097A7 100%) !important;
+    color: #07090F !important;
+    font-family: 'Syne', sans-serif !important;
+    font-weight: 700 !important;
+    font-size: 0.85rem !important;
+    letter-spacing: 0.08em !important;
+    border: none !important;
+    border-radius: 10px !important;
+    padding: 0.65rem 2rem !important;
+    width: 100% !important;
+    transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s !important;
+    box-shadow: 0 4px 24px rgba(0,200,180,0.25) !important;
+    cursor: pointer !important;
+}
+[data-testid="stButton"] > button:hover {
+    opacity: 0.92 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 6px 32px rgba(0,200,180,0.38) !important;
+}
+[data-testid="stButton"] > button:active { transform: translateY(0) !important; }
+
+/* ── Download button ── */
+[data-testid="stDownloadButton"] > button {
+    background: rgba(0,200,180,0.08) !important;
+    color: #00C8B4 !important;
+    font-family: 'DM Mono', monospace !important;
+    font-size: 0.78rem !important;
+    border: 1px solid rgba(0,200,180,0.3) !important;
+    border-radius: 10px !important;
+    padding: 0.55rem 1.4rem !important;
+    transition: background 0.2s, border-color 0.2s !important;
+}
+[data-testid="stDownloadButton"] > button:hover {
+    background: rgba(0,200,180,0.14) !important;
     border-color: rgba(0,200,180,0.55) !important;
-}}
-[data-testid="stFileUploader"] label {{
-    color:#5A8090 !important; font-family:'DM Mono',monospace !important; font-size:0.78rem !important;
-}}
+}
 
-/* Image */
-[data-testid="stImage"] img {{
-    border-radius:12px;
-    border:1px solid rgba(0,200,180,0.14);
-    box-shadow:0 0 30px rgba(0,200,180,0.06);
-}}
+/* ── Alerts ── */
+[data-testid="stAlert"] {
+    border-radius: 10px !important;
+    font-family: 'DM Mono', monospace !important;
+    font-size: 0.78rem !important;
+}
 
-/* Sidebar */
-[data-testid="stSidebar"] {{
-    background:#0A0D15 !important;
-    border-right:1px solid rgba(0,200,180,0.08) !important;
-}}
-[data-testid="stSidebar"] p, [data-testid="stSidebar"] li {{
-    font-size:0.76rem !important; color:#4A6070 !important; line-height:1.75 !important;
-}}
-.sidebar-badge {{
-    display:inline-block; background:rgba(0,200,180,0.1); color:#00C8B4;
-    font-size:0.58rem; letter-spacing:0.2em; padding:0.2rem 0.55rem;
-    border-radius:99px; border:1px solid rgba(0,200,180,0.25);
-    margin-bottom:0.8rem; text-transform:uppercase;
-}}
+/* ── Sidebar ── */
+[data-testid="stSidebar"] {
+    background: rgba(10,13,21,0.97) !important;
+    border-right: 1px solid rgba(0,200,180,0.10) !important;
+}
+[data-testid="stSidebar"] h2 {
+    font-family: 'Syne', sans-serif !important; font-weight: 700 !important;
+    color: #EEF4FF !important; font-size: 1rem !important;
+}
+[data-testid="stSidebar"] p, [data-testid="stSidebar"] li {
+    font-size: 0.78rem !important; color: #4A6070 !important; line-height: 1.7 !important;
+}
 
-/* Alerts */
-[data-testid="stAlert"] {{
-    border-radius:10px !important;
-    font-family:'DM Mono',monospace !important;
-    font-size:0.75rem !important;
-}}
+/* ── Images ── */
+[data-testid="stImage"] {
+    border-radius: 12px; overflow: hidden;
+    border: 1px solid rgba(0,200,180,0.14);
+    box-shadow: 0 0 40px rgba(0,200,180,0.08);
+    position: relative; z-index: 1;
+}
+[data-testid="stImage"] img { border-radius: 12px; }
 
-/* Spinner */
-[data-testid="stSpinner"] {{ color:#00C8B4 !important; }}
+/* ── File uploader ── */
+[data-testid="stFileUploader"] { background: transparent !important; position: relative; z-index: 1; }
+[data-testid="stFileUploader"] > div {
+    background: rgba(0,200,180,0.03) !important;
+    border: 1px dashed rgba(0,200,180,0.25) !important;
+    border-radius: 12px !important; transition: border-color 0.3s, background 0.3s !important;
+}
+[data-testid="stFileUploader"] > div:hover {
+    background: rgba(0,200,180,0.06) !important; border-color: rgba(0,200,180,0.55) !important;
+}
+[data-testid="stFileUploader"] label { color: #5A8090 !important; font-family: 'DM Mono', monospace !important; font-size: 0.8rem !important; }
+[data-testid="stFileUploader"] small { color: #3A5060 !important; font-size: 0.68rem !important; }
 
-.footer {{
-    margin-top:3rem; text-align:center;
-    font-size:0.6rem; letter-spacing:0.18em; color:#1A2A35; text-transform:uppercase;
-}}
+.footer {
+    margin-top: 3.5rem; text-align: center; font-size: 0.6rem;
+    letter-spacing: 0.18em; color: #1E3040; text-transform: uppercase;
+    position: relative; z-index: 1;
+}
+.sidebar-badge {
+    display: inline-block; background: rgba(0,200,180,0.1); color: #00C8B4;
+    font-size: 0.6rem; letter-spacing: 0.2em; padding: 0.25rem 0.7rem;
+    border-radius: 99px; border: 1px solid rgba(0,200,180,0.25);
+    margin-bottom: 1rem; text-transform: uppercase;
+}
+.divider { height: 1px; background: linear-gradient(90deg,transparent,#1A3040,transparent); margin: 2rem 0; }
+.upload-label {
+    font-size: 0.68rem; letter-spacing: 0.25em; text-transform: uppercase;
+    color: #3A5A70; margin-bottom: 0.5rem; display: block; position: relative; z-index: 1;
+}
+.header-wrap { text-align: center; padding: 2.5rem 0 2rem; position: relative; z-index: 1; }
+.header-eyebrow { font-size: 0.7rem; letter-spacing: 0.35em; color: #00C8B4; text-transform: uppercase; margin-bottom: 1rem; }
+.header-title { font-family: 'Syne', sans-serif; font-size: clamp(2.2rem,5vw,3.4rem); font-weight: 800; line-height: 1.05; color: #EEF4FF; letter-spacing: -0.02em; }
+.header-title span { color: #00C8B4; }
+.header-sub { margin-top: 0.9rem; font-size: 0.8rem; color: #5A7090; letter-spacing: 0.05em; }
 </style>
-""", unsafe_allow_html=True)
+"""
+st.markdown(SHARED_CSS, unsafe_allow_html=True)
 
-# ── Sidebar ────────────────────────────────────────────────────────────────────
-with st.sidebar:
-    st.markdown('<span class="sidebar-badge">v2.1 · CNN Classifier</span>', unsafe_allow_html=True)
-    st.markdown("## NeuroScan AI")
+# ══════════════════════════════════════════════════════════════════════════════
+#  LOGIN PAGE
+# ══════════════════════════════════════════════════════════════════════════════
+if not st.session_state.logged_in:
+
     st.markdown("""
-A deep learning classifier trained on contrast-enhanced MRI scans.
+    <style>
+    .block-container { padding: 0 !important; max-width: 100% !important; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    LOGIN_HTML = """
+    <!DOCTYPE html><html>
+    <head>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{background:transparent;font-family:'DM Mono',monospace;color:#C8D6E5;}
+
+    .hero {
+        display:flex; flex-direction:column; align-items:center;
+        padding: 3.5rem 1.5rem 2rem;
+        text-align:center; position:relative;
+    }
+    .badge {
+        display:inline-flex; align-items:center; gap:0.4rem;
+        background:rgba(0,200,180,0.10); color:#00C8B4;
+        font-size:0.62rem; letter-spacing:0.28em; text-transform:uppercase;
+        padding:0.3rem 0.9rem; border-radius:99px;
+        border:1px solid rgba(0,200,180,0.28); margin-bottom:1.6rem;
+    }
+    .dot { width:6px;height:6px;border-radius:50%;background:#00C8B4;
+           animation:pulse 2s ease-in-out infinite; }
+    @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.4;transform:scale(0.7);}}
+
+    .logo {
+        font-family:'Syne',sans-serif; font-size:clamp(2.6rem,7vw,3.8rem);
+        font-weight:800; letter-spacing:-0.03em; line-height:1;
+        color:#EEF4FF; margin-bottom:0.6rem;
+    }
+    .logo span{color:#00C8B4;}
+    .tagline { font-size:0.78rem; color:#3A5A70; letter-spacing:0.08em; margin-bottom:2.2rem; }
+
+    /* stat chips */
+    .stats { display:flex; gap:1rem; margin-bottom:2.4rem; justify-content:center; flex-wrap:wrap; }
+    .stat {
+        background:rgba(0,200,180,0.05); border:1px solid rgba(0,200,180,0.14);
+        border-radius:10px; padding:0.55rem 1.1rem; text-align:center;
+    }
+    .stat-val { font-family:'Syne',sans-serif; font-size:1.15rem; font-weight:700; color:#00C8B4; }
+    .stat-lbl { font-size:0.58rem; letter-spacing:0.18em; color:#3A5A70; text-transform:uppercase; margin-top:0.1rem; }
+
+    /* card */
+    .card {
+        width:100%; max-width:420px;
+        background:rgba(10,14,22,0.85);
+        border:1px solid rgba(0,200,180,0.16);
+        border-radius:20px; padding:2.2rem 2rem 2rem;
+        position:relative; overflow:hidden;
+        backdrop-filter:blur(12px);
+        box-shadow: 0 0 0 1px rgba(0,200,180,0.04),
+                    0 20px 60px rgba(0,0,0,0.5),
+                    0 0 80px rgba(0,200,180,0.04);
+    }
+    .card::before {
+        content:''; position:absolute; top:0; left:0; right:0; height:2px;
+        background:linear-gradient(90deg,transparent,#00C8B4,transparent);
+    }
+    .card-title {
+        font-family:'Syne',sans-serif; font-size:1.15rem; font-weight:700;
+        color:#EEF4FF; margin-bottom:0.3rem;
+    }
+    .card-sub { font-size:0.68rem; color:#3A5060; letter-spacing:0.06em; margin-bottom:1.8rem; }
+
+    /* feature pills */
+    .features { display:flex; flex-direction:column; gap:0.55rem; margin-bottom:2rem; }
+    .feat {
+        display:flex; align-items:center; gap:0.65rem;
+        background:rgba(0,200,180,0.04); border:1px solid rgba(0,200,180,0.10);
+        border-radius:9px; padding:0.55rem 0.85rem;
+        font-size:0.7rem; color:#4A7080; letter-spacing:0.04em;
+    }
+    .feat-icon { font-size:0.9rem; }
+    .feat strong { color:#8ABFC8; font-weight:500; }
+
+    .sep { height:1px; background:linear-gradient(90deg,transparent,rgba(0,200,180,0.18),transparent); margin:1.5rem 0; }
+    .signin-lbl { font-size:0.6rem; letter-spacing:0.28em; color:#3A5060; text-transform:uppercase; margin-bottom:1.2rem; }
+
+    .disclaimer {
+        margin-top:1.6rem; font-size:0.6rem; color:#1E3040;
+        letter-spacing:0.06em; text-align:center; line-height:1.6;
+    }
+    </style>
+    </head>
+    <body>
+    <div class="hero">
+        <div class="badge"><div class="dot"></div>Deep Learning · MRI Analysis</div>
+        <div class="logo">Neuro<span>Scan</span> AI</div>
+        <div class="tagline">Instant brain tumor classification from MRI scans</div>
+        <div class="stats">
+            <div class="stat"><div class="stat-val">4</div><div class="stat-lbl">Tumor Classes</div></div>
+            <div class="stat"><div class="stat-val">3K+</div><div class="stat-lbl">Training Scans</div></div>
+            <div class="stat"><div class="stat-val">CNN</div><div class="stat-lbl">Architecture</div></div>
+            <div class="stat"><div class="stat-val">Grad-CAM</div><div class="stat-lbl">Explainability</div></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Secure Access</div>
+            <div class="card-sub">Authorized personnel only · Research environment</div>
+
+            <div class="features">
+                <div class="feat"><span class="feat-icon">🧠</span><span>Detects <strong>Glioma, Meningioma, Pituitary</strong> &amp; No Tumor</span></div>
+                <div class="feat"><span class="feat-icon">🔥</span><span><strong>Grad-CAM</strong> attention heatmaps for explainability</span></div>
+                <div class="feat"><span class="feat-icon">📄</span><span>One-click <strong>PDF report</strong> generation</span></div>
+            </div>
+
+            <div class="sep"></div>
+            <div class="signin-lbl">Sign in to continue</div>
+        </div>
+
+        <div class="disclaimer">
+            NeuroScan AI · Research prototype · Not for clinical use<br>
+            © 2025 · For educational and research purposes only
+        </div>
+    </div>
+    </body></html>
+    """
+
+    components.html(LOGIN_HTML, height=680, scrolling=False)
+
+    # ── Centered input form ────────────────────────────────────────────────────
+    col_l, col_m, col_r = st.columns([1, 2, 1])
+    with col_m:
+        st.markdown("""
+        <style>
+        /* keep the form inputs inside the card look */
+        [data-testid="stTextInput"] { margin-bottom: 0.4rem; }
+        </style>
+        """, unsafe_allow_html=True)
+
+        username = st.text_input("Username", placeholder="Enter username")
+        password = st.text_input("Password", type="password", placeholder="Enter password")
+
+        if st.button("Sign In →"):
+            if username == "admin" and password == "brain123":
+                st.session_state.logged_in = True
+                st.rerun()
+            else:
+                st.error("Invalid credentials. Please try again.")
+
+    st.markdown("""
+    <div style="text-align:center;margin-top:1rem;font-size:0.6rem;
+                color:#1E3040;letter-spacing:0.15em;text-transform:uppercase;
+                position:relative;z-index:1;">
+        NeuroScan AI · Research Prototype · Not for Clinical Use
+    </div>""", unsafe_allow_html=True)
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  MAIN APP  (post-login)
+# ══════════════════════════════════════════════════════════════════════════════
+else:
+
+    st.markdown("""
+    <style>
+    .block-container { padding: 2.5rem 2rem 4rem !important; max-width: 780px !important; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # ── Sidebar ────────────────────────────────────────────────────────────────
+    with st.sidebar:
+        st.markdown('<span class="sidebar-badge">v2.0 · CNN Model</span>', unsafe_allow_html=True)
+        st.markdown("## NeuroScan AI")
+        st.markdown("""
+A deep learning classifier trained on contrast-enhanced MRI scans to identify four neurological conditions.
 
 **Detectable classes**
 - Glioma
@@ -161,174 +368,277 @@ A deep learning classifier trained on contrast-enhanced MRI scans.
 - Pituitary adenoma
 - No tumor
 
-**Input** JPG / PNG · resized to 128×128 internally
+**Input spec**  
+JPG / PNG · 128 × 128 px internal
 
-**Stack** TensorFlow 2.12 · Keras 2.12 · Streamlit
+**Architecture**  
+CNN trained on 3,000+ labelled MRI samples.
 
 ---
-*Research use only — not a clinical diagnostic tool.*
+*For research and educational use only. Not a clinical diagnostic tool.*
 """)
+        st.markdown("---")
+        if st.button("🚪 Sign Out"):
+            st.session_state.logged_in = False
+            st.rerun()
 
-# ── Header ─────────────────────────────────────────────────────────────────────
-st.markdown("""
-<div class="header-wrap">
-    <div class="header-eyebrow">Deep Learning · MRI Analysis</div>
-    <div class="header-title">Neuro<span>Scan</span> AI</div>
-    <div class="header-sub">Upload a brain MRI scan — get an instant AI classification</div>
-</div>
-<div class="divider"></div>
-""", unsafe_allow_html=True)
-
-# ── Robust model loader (fixes Keras version mismatch) ─────────────────────────
-@st.cache_resource(show_spinner=False)
-def load_model():
-    import tensorflow as tf
-    try:
-        # compile=False skips optimizer deserialization — fixes Keras version mismatch
-        return tf.keras.models.load_model(
-            "models/brain_tumor_model.h5",
-            compile=False
-        )
-    except Exception:
-        # Fallback: load weights only into a fresh model
-        model = tf.keras.Sequential([
-            tf.keras.layers.InputLayer(input_shape=(128, 128, 3)),
-            tf.keras.layers.Conv2D(32, 3, activation="relu", padding="same"),
-            tf.keras.layers.MaxPooling2D(),
-            tf.keras.layers.Conv2D(64, 3, activation="relu", padding="same"),
-            tf.keras.layers.MaxPooling2D(),
-            tf.keras.layers.Conv2D(128, 3, activation="relu", padding="same"),
-            tf.keras.layers.MaxPooling2D(),
-            tf.keras.layers.GlobalAveragePooling2D(),
-            tf.keras.layers.Dense(256, activation="relu"),
-            tf.keras.layers.Dropout(0.4),
-            tf.keras.layers.Dense(4, activation="softmax"),
-        ])
-        model.load_weights("models/brain_tumor_model.h5", by_name=False, skip_mismatch=True)
-        return model
-
-def run_inference(model_obj, model_type, img_array):
-    """Run prediction regardless of how the model was loaded."""
-    return model_obj.predict(img_array, verbose=0)[0]
-
-CLASS_NAMES   = ["glioma", "meningioma", "notumor", "pituitary"]
-CLASS_DISPLAY = {"glioma":"Glioma","meningioma":"Meningioma","notumor":"No Tumor","pituitary":"Pituitary"}
-CLASS_COLORS  = {"glioma":"#FF6B6B","meningioma":"#FFB347","notumor":"#00C8B4","pituitary":"#7B8CDE"}
-
-# ── Load model with status ─────────────────────────────────────────────────────
-with st.spinner("Loading model…"):
-    try:
-        model_obj = load_model()
-        load_ok = True
-    except Exception as err:
-        load_ok = False
-        st.error(f"Model failed to load: {err}")
-
-# ── Upload ─────────────────────────────────────────────────────────────────────
-st.markdown('<span class="upload-label">MRI scan image</span>', unsafe_allow_html=True)
-uploaded_file = st.file_uploader(
-    "", type=["jpg", "jpeg", "png"], label_visibility="collapsed"
-)
-
-# ── Inference + result ─────────────────────────────────────────────────────────
-if uploaded_file and load_ok:
-    pil_img = Image.open(uploaded_file).convert("RGB")
-
-    c1, c2, c3 = st.columns([1, 8, 1])
-    with c2:
-        st.image(pil_img, use_container_width=True)
-
-    # Preprocess
-    resized   = pil_img.resize((128, 128))
-    arr       = np.array(resized, dtype=np.float32) / 255.0
-    img_input = np.expand_dims(arr, axis=0)           # (1,128,128,3)
-
-    with st.spinner("Analysing scan…"):
-        probs = run_inference(model_obj, None, img_input)
-
-    pred_idx  = int(np.argmax(probs))
-    pred_cls  = CLASS_NAMES[pred_idx]
-    pct       = int(probs[pred_idx] * 100)
-    accent    = CLASS_COLORS[pred_cls]
-
-    # Build chips
-    chips = ""
-    for i, cls in enumerate(CLASS_NAMES):
-        p   = int(probs[i] * 100)
-        ac  = "active" if i == pred_idx else ""
-        col = CLASS_COLORS[cls] if i == pred_idx else "#3A5060"
-        bg  = f"rgba(0,200,180,0.1)" if i == pred_idx else "rgba(255,255,255,0.03)"
-        bd  = f"1px solid {CLASS_COLORS[cls]}55" if i == pred_idx else "1px solid rgba(255,255,255,0.07)"
-        pc  = CLASS_COLORS[cls] if i == pred_idx else "#EEF4FF"
-        chips += f"""<div style="background:{bg};border:{bd};border-radius:10px;
-            padding:0.75rem 0.4rem;text-align:center;font-family:'DM Mono',monospace;
-            font-size:0.58rem;letter-spacing:0.1em;text-transform:uppercase;color:{col};">
-            {CLASS_DISPLAY[cls]}
-            <div style="font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;
-                        color:{pc};margin-top:0.25rem;">{p}%</div></div>"""
-
-    card_html = f"""<!DOCTYPE html><html><head>
-    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
-    <style>
-    *{{box-sizing:border-box;margin:0;padding:0;}}
-    body{{background:transparent;font-family:'DM Mono',monospace;color:#C8D6E5;padding:2px;}}
-    .card{{border:1px solid {accent}33;border-radius:16px;background:{accent}09;
-           padding:1.6rem 1.8rem;position:relative;overflow:hidden;}}
-    .card::before{{content:'';position:absolute;top:0;left:0;right:0;height:2px;
-                   background:linear-gradient(90deg,transparent,{accent},transparent);}}
-    .tag{{font-size:0.58rem;letter-spacing:0.3em;text-transform:uppercase;
-          color:{accent};margin-bottom:0.4rem;}}
-    .lbl{{font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:{accent};}}
-    .row{{display:flex;align-items:center;gap:0.8rem;margin-top:1.2rem;}}
-    .cl{{font-size:0.62rem;color:#3A5060;letter-spacing:0.1em;text-transform:uppercase;min-width:76px;}}
-    .track{{flex:1;height:4px;background:rgba(255,255,255,0.06);border-radius:99px;overflow:hidden;}}
-    .fill{{height:100%;border-radius:99px;background:linear-gradient(90deg,{accent}88,{accent});
-           width:0%;transition:width 1.2s cubic-bezier(.4,0,.2,1);}}
-    .cv{{font-family:'Syne',sans-serif;font-size:0.95rem;font-weight:700;
-         color:{accent};min-width:38px;text-align:right;}}
-    .grid{{display:grid;grid-template-columns:repeat(4,1fr);gap:0.55rem;margin-top:1.4rem;}}
-    .sep{{height:1px;background:linear-gradient(90deg,transparent,{accent}22,transparent);
-          margin:1.2rem 0 0;}}
-    </style></head><body>
-    <div class="card">
-      <div class="tag">Classification result</div>
-      <div class="lbl">{CLASS_DISPLAY[pred_cls]}</div>
-      <div class="row">
-        <span class="cl">Confidence</span>
-        <div class="track"><div class="fill" id="bar"></div></div>
-        <span class="cv">{pct}%</span>
-      </div>
-      <div class="sep"></div>
-      <div class="grid">{chips}</div>
-    </div>
-    <script>
-      requestAnimationFrame(()=>setTimeout(()=>{{
-        document.getElementById('bar').style.width='{pct}%';
-      }},80));
-    </script>
-    </body></html>"""
-
-    components.html(card_html, height=295, scrolling=False)
-
-    if pred_cls != "notumor":
-        st.warning(
-            "⚠  Anomaly detected. This result is for research purposes only — "
-            "please consult a qualified radiologist or neurologist for clinical evaluation."
-        )
-    else:
-        st.success("✓  No tumor indicators detected in this scan.")
-
-elif not uploaded_file:
+    # ── Header ─────────────────────────────────────────────────────────────────
     st.markdown("""
-    <div style="text-align:center;padding:3rem 1rem;color:#1E3040;
-                border:1px dashed rgba(30,80,100,0.2);border-radius:12px;margin-top:1rem;">
-        <div style="font-size:2.5rem;margin-bottom:0.6rem;opacity:0.25;">🔬</div>
-        <div style="font-size:0.68rem;letter-spacing:0.22em;text-transform:uppercase;">
-            Awaiting MRI scan upload
-        </div>
-    </div>""", unsafe_allow_html=True)
+    <div class="header-wrap">
+        <div class="header-eyebrow">Deep Learning · MRI Analysis</div>
+        <div class="header-title">Neuro<span>Scan</span> AI</div>
+        <div class="header-sub">Upload a brain MRI scan — get an instant classification</div>
+    </div>
+    <div class="divider"></div>
+    """, unsafe_allow_html=True)
 
-# ── Footer ─────────────────────────────────────────────────────────────────────
-st.markdown("""
-<div class="footer">NeuroScan AI · Research prototype · Not for clinical use</div>
-""", unsafe_allow_html=True)
+    # ── Load model ─────────────────────────────────────────────────────────────
+    @st.cache_resource
+    def load_model():
+        import tensorflow as tf
+
+        model = tf.keras.models.load_model(
+           "models/new_model.keras",
+            compile=False,
+            safe_mode=False
+        )
+
+        return model
+    
+
+    
+    # ── PDF ────────────────────────────────────────────────────────────────────
+    def generate_pdf_report(predicted_cls, confidence):
+        buffer = BytesIO()
+        doc    = SimpleDocTemplate(buffer, pagesize=letter)
+        styles = getSampleStyleSheet()
+        elems  = []
+        elems.append(Paragraph("<b>NeuroScan AI - MRI Analysis Report</b>", styles['Title']))
+        elems.append(Spacer(1, 20))
+        elems.append(Paragraph(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['BodyText']))
+        elems.append(Spacer(1, 20))
+        elems.append(Paragraph(f"<b>Prediction:</b> {predicted_cls}", styles['Heading2']))
+        elems.append(Paragraph(f"<b>Confidence Score:</b> {confidence:.2f}", styles['BodyText']))
+        elems.append(Spacer(1, 20))
+        elems.append(Paragraph(
+            "This AI-generated result is for educational and research purposes only. "
+            "Please consult a qualified medical professional for clinical diagnosis.",
+            styles['BodyText']
+        ))
+        doc.build(elems)
+        buffer.seek(0)
+        return buffer
+
+    # ── Labels ─────────────────────────────────────────────────────────────────
+    class_names   = ['glioma', 'meningioma', 'notumor', 'pituitary']
+    class_display = {'glioma':'Glioma','meningioma':'Meningioma','notumor':'No Tumor','pituitary':'Pituitary'}
+    class_colors  = {'glioma':'#FF6B6B','meningioma':'#FFB347','notumor':'#00C8B4','pituitary':'#7B8CDE'}
+
+    # ── Upload ─────────────────────────────────────────────────────────────────
+    st.markdown('<span class="upload-label">MRI scan image</span>', unsafe_allow_html=True)
+    uploaded_file = st.file_uploader("", type=["jpg","jpeg","png"], label_visibility="collapsed")
+
+    if uploaded_file is not None:
+
+        if "model" not in st.session_state:
+             with st.spinner("Loading AI model..."):
+                st.session_state.model = load_model()
+
+        model = st.session_state.model
+
+       
+
+        img = Image.open(uploaded_file).convert("RGB")
+
+        col1, col2, col3 = st.columns([1, 8, 1])
+        with col2:
+            st.image(img, caption="", use_container_width=True)
+
+        img_resized = img.resize((128, 128))
+        img_array   = image.img_to_array(img_resized)
+        img_array   = np.expand_dims(img_array, axis=0) / 255.0
+
+        with st.spinner("Analysing scan…"):
+            prediction = model.predict(img_array)
+
+        probs         = prediction[0]
+        predicted_idx = int(np.argmax(probs))
+        predicted_cls = class_names[predicted_idx]
+        pct           = int(probs[predicted_idx] * 100)
+        accent        = class_colors[predicted_cls]
+
+        # chips
+        chips_html = ""
+        for i, cls in enumerate(class_names):
+            active = i == predicted_idx
+            p      = int(probs[i] * 100)
+            hx     = class_colors[cls][1:]
+            r,g,b  = int(hx[0:2],16), int(hx[2:4],16), int(hx[4:6],16)
+            bg     = f"rgba({r},{g},{b},0.12)" if active else "rgba(255,255,255,0.03)"
+            border = f"1px solid {class_colors[cls]}55" if active else "1px solid rgba(255,255,255,0.07)"
+            cc     = class_colors[cls] if active else "#3A5060"
+            pc     = class_colors[cls] if active else "#EEF4FF"
+            chips_html += f"""
+            <div style="background:{bg};border:{border};border-radius:10px;
+                        padding:0.8rem 0.5rem;text-align:center;
+                        font-family:'DM Mono',monospace;font-size:0.6rem;
+                        letter-spacing:0.1em;text-transform:uppercase;color:{cc};">
+                {class_display[cls]}
+                <div style="font-family:'Syne',sans-serif;font-size:1rem;
+                            font-weight:700;color:{pc};margin-top:0.3rem;">{p}%</div>
+            </div>"""
+
+        card_html = f"""<!DOCTYPE html><html>
+        <head>
+        <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+        <style>
+        *{{box-sizing:border-box;margin:0;padding:0;}}
+        body{{background:transparent;font-family:'DM Mono',monospace;color:#C8D6E5;}}
+        .card{{border:1px solid {accent}33;border-radius:16px;background:{accent}08;
+               padding:1.8rem 2rem;position:relative;overflow:hidden;}}
+        .card::before{{content:'';position:absolute;top:0;left:0;right:0;height:2px;
+                       background:linear-gradient(90deg,transparent,{accent},transparent);}}
+        .tag{{font-size:0.6rem;letter-spacing:0.3em;text-transform:uppercase;color:{accent};margin-bottom:0.5rem;}}
+        .label{{font-family:'Syne',sans-serif;font-size:2.2rem;font-weight:800;color:{accent};letter-spacing:-0.02em;}}
+        .conf-row{{display:flex;align-items:center;gap:1rem;margin-top:1.4rem;}}
+        .conf-lbl{{font-size:0.65rem;color:#3A5060;letter-spacing:0.12em;min-width:80px;text-transform:uppercase;}}
+        .track{{flex:1;height:5px;background:rgba(255,255,255,0.06);border-radius:99px;overflow:hidden;}}
+        .fill{{height:100%;border-radius:99px;background:linear-gradient(90deg,{accent}88,{accent});
+               width:0%;transition:width 1.2s cubic-bezier(.4,0,.2,1);}}
+        .conf-val{{font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;color:{accent};min-width:44px;text-align:right;}}
+        .grid{{display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-top:1.6rem;}}
+        .sep{{height:1px;background:linear-gradient(90deg,transparent,{accent}22,transparent);margin:1.4rem 0 0;}}
+        </style></head><body>
+        <div class="card">
+            <div class="tag">Classification result</div>
+            <div class="label">{class_display[predicted_cls]}</div>
+            <div class="conf-row">
+              <span class="conf-lbl">Confidence</span>
+              <div class="track"><div class="fill" id="bar"></div></div>
+              <span class="conf-val">{pct}%</span>
+            </div>
+            <div class="sep"></div>
+            <div class="grid">{chips_html}</div>
+        </div>
+        <script>requestAnimationFrame(()=>{{setTimeout(()=>{{document.getElementById('bar').style.width='{pct}%';}},80);}});</script>
+        </body></html>"""
+
+        components.html(card_html, height=300, scrolling=False)
+
+#         
+# # ── Grad-CAM ──────────────────────────────────────────────────────────
+# 
+        st.markdown("""
+    <div style="
+    padding:20px;
+    border-radius:18px;
+    background:rgba(255,255,255,0.03);
+    border:1px solid rgba(0,255,255,0.15);
+    margin-top:30px;
+    ">
+
+    <h2 style="color:white;">
+    🔥 MRI Heatmap Visualization
+    </h2>
+
+    <p style="
+    color:#9aa4b2;
+    font-size:16px;
+    line-height:1.8;
+    ">
+    Advanced Grad-CAM visualization module is currently under optimization for NeuroScan AI.
+    </p>
+
+    <p style="
+    color:#00ffd5;
+    font-size:14px;
+    ">
+    ✔ Future release will include:
+    <br>• Tumor localization
+    <br>• MRI attention mapping
+    <br>• Neural activation visualization
+    </p>
+
+    </div>
+    """, unsafe_allow_html=True)
+#         st.markdown("### 🔥 MRI Heatmap Visualization")
+#         try:
+#             hm_resized  = cv2.resize(heatmap, (img.width, img.height))
+#             hm_uint8    = np.uint8(255 * hm_resized)
+#             jet         = cm.get_cmap("jet")
+#             jet_colors  = jet(np.arange(256))[:, :3]
+#             jet_hm      = jet_colors[hm_uint8]
+#             jet_img_arr = image.img_to_array(image.array_to_img(jet_hm).resize((img.width, img.height)))
+#             superimposed = image.array_to_img(jet_img_arr * 0.4 + image.img_to_array(img))
+#             st.image(superimposed, caption="AI Attention Heatmap", use_container_width=True)
+#         except Exception as e:
+#             st.error(f"Grad-CAM error: {e}")
+# #         st.markdown("""
+# <div style="
+# padding:20px;
+# border-radius:16px;
+# background:rgba(255,255,255,0.03);
+# border:1px solid rgba(0,255,255,0.15);
+# margin-top:25px;
+# ">
+
+# <h2 style="color:white;">
+# 🔥 MRI Heatmap Visualization
+# </h2>
+
+# <p style="
+# color:#9aa4b2;
+# font-size:16px;
+# line-height:1.7;
+# ">
+# Advanced Grad-CAM heatmap visualization module is currently under optimization for NeuroScan AI v2.
+# </p>
+
+# <p style="
+# color:#00ffd5;
+# font-size:14px;
+# ">
+# ✔ Future release will include:
+# <br>
+# • Tumor localization
+# <br>
+# • Attention mapping
+# <br>
+# • MRI region activation analysis
+# </p>
+
+# </div>
+#""", unsafe_allow_html=True)
+        # ── PDF ───────────────────────────────────────────────────────────────
+        pdf_file = generate_pdf_report(predicted_cls, float(probs[predicted_idx]))
+        st.download_button(
+            label="📄 Download MRI Report",
+            data=pdf_file,
+            file_name="NeuroScan_Report.pdf",
+            mime="application/pdf"
+        )
+
+        if predicted_cls != "notumor":
+            st.warning("⚠  Anomaly detected. This result is for informational purposes only — "
+                       "please consult a qualified radiologist or neurologist for clinical evaluation.")
+        else:
+            st.success("✓  No tumor indicators detected in this scan.")
+
+    else:
+        st.markdown("""
+        <div style="text-align:center;padding:3rem 1.5rem;
+                    border:1px dashed rgba(0,200,180,0.12);border-radius:16px;
+                    margin-top:1rem;position:relative;z-index:1;
+                    background:rgba(0,200,180,0.02);">
+            <div style="font-size:2.5rem;margin-bottom:0.8rem;opacity:0.25;">🔬</div>
+            <div style="font-family:'Syne',sans-serif;font-size:0.95rem;font-weight:700;
+                        color:#1E4050;letter-spacing:0.04em;margin-bottom:0.4rem;">
+                No scan uploaded
+            </div>
+            <div style="font-size:0.68rem;letter-spacing:0.18em;text-transform:uppercase;color:#1A3040;">
+                Drop a JPG or PNG MRI image above to begin
+            </div>
+        </div>""", unsafe_allow_html=True)
+
+    st.markdown('<div class="footer">NeuroScan AI · Research prototype · Not for clinical use</div>',
+                unsafe_allow_html=True)
