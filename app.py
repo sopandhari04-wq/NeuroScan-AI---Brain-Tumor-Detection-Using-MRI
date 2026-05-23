@@ -400,7 +400,7 @@ CNN trained on 3,000+ labelled MRI samples.
         model = tf.keras.models.load_model(
            "models/new_model.keras",
             compile=False,
-            safe_mode=False
+            
         )
 
         return model
