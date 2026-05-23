@@ -397,7 +397,7 @@ CNN trained on 3,000+ labelled MRI samples.
     @st.cache_resource
     def load_model():
         model = tf.keras.models.load_model(
-            "models/new_model.h5",    
+            "models/brain_tumor_model.h5",  
              compile=False
         )
         return model

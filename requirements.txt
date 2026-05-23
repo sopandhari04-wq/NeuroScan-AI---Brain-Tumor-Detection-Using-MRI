@@ -7,3 +7,4 @@ opencv-python-headless
 reportlab
 nibabel
 h5py
+kaggle
