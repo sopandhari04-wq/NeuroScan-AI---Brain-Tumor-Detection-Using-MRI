@@ -160,6 +160,8 @@ html, body, .stApp {
     border-radius: 12px !important;
     border: 1px solid rgba(0,200,180,0.12) !important;
     padding: 4px !important; gap: 4px !important;
+    justify-content: center !important;
+    
 }
 .stTabs [data-baseweb="tab"] {
     font-family: 'DM Mono', monospace !important;
