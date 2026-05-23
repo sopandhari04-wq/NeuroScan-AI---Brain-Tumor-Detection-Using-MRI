@@ -1,12 +1,5 @@
 import tensorflow as tf
 
-# Load old model
-model = tf.keras.models.load_model(
-    "models/brain_tumor_model.h5",
-    compile=False
-)
-
-# Save in newer compatible format
-model.save("models/new_model.keras")
-
-print("Model converted successfully!")
+model = tf.keras.models.load_model("models/new_model.keras")
+model.save("models/new_model.h5", save_format="h5")
+print("Done! new_model.h5 saved.")

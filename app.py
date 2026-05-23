@@ -393,20 +393,16 @@ CNN trained on 3,000+ labelled MRI samples.
     """, unsafe_allow_html=True)
 
     # ── Load model ─────────────────────────────────────────────────────────────
+    # ⚠️ ONLY CHANGE: "new_model.keras" → "new_model.h5" and removed safe_mode
     @st.cache_resource
     def load_model():
         import tensorflow as tf
-
         model = tf.keras.models.load_model(
-           "models/new_model.keras",
-            compile=False,
-            
+            "models/new_model.h5",
+            compile=False
         )
-
         return model
-    
 
-    
     # ── PDF ────────────────────────────────────────────────────────────────────
     def generate_pdf_report(predicted_cls, confidence):
         buffer = BytesIO()
@@ -441,12 +437,10 @@ CNN trained on 3,000+ labelled MRI samples.
     if uploaded_file is not None:
 
         if "model" not in st.session_state:
-             with st.spinner("Loading AI model..."):
+            with st.spinner("Loading AI model..."):
                 st.session_state.model = load_model()
 
         model = st.session_state.model
-
-       
 
         img = Image.open(uploaded_file).convert("RGB")
 
@@ -525,9 +519,6 @@ CNN trained on 3,000+ labelled MRI samples.
 
         components.html(card_html, height=300, scrolling=False)
 
-#         
-# # ── Grad-CAM ──────────────────────────────────────────────────────────
-# 
         st.markdown("""
     <div style="
     padding:20px;
@@ -561,54 +552,7 @@ CNN trained on 3,000+ labelled MRI samples.
 
     </div>
     """, unsafe_allow_html=True)
-#         st.markdown("### 🔥 MRI Heatmap Visualization")
-#         try:
-#             hm_resized  = cv2.resize(heatmap, (img.width, img.height))
-#             hm_uint8    = np.uint8(255 * hm_resized)
-#             jet         = cm.get_cmap("jet")
-#             jet_colors  = jet(np.arange(256))[:, :3]
-#             jet_hm      = jet_colors[hm_uint8]
-#             jet_img_arr = image.img_to_array(image.array_to_img(jet_hm).resize((img.width, img.height)))
-#             superimposed = image.array_to_img(jet_img_arr * 0.4 + image.img_to_array(img))
-#             st.image(superimposed, caption="AI Attention Heatmap", use_container_width=True)
-#         except Exception as e:
-#             st.error(f"Grad-CAM error: {e}")
-# #         st.markdown("""
-# <div style="
-# padding:20px;
-# border-radius:16px;
-# background:rgba(255,255,255,0.03);
-# border:1px solid rgba(0,255,255,0.15);
-# margin-top:25px;
-# ">
 
-# <h2 style="color:white;">
-# 🔥 MRI Heatmap Visualization
-# </h2>
-
-# <p style="
-# color:#9aa4b2;
-# font-size:16px;
-# line-height:1.7;
-# ">
-# Advanced Grad-CAM heatmap visualization module is currently under optimization for NeuroScan AI v2.
-# </p>
-
-# <p style="
-# color:#00ffd5;
-# font-size:14px;
-# ">
-# ✔ Future release will include:
-# <br>
-# • Tumor localization
-# <br>
-# • Attention mapping
-# <br>
-# • MRI region activation analysis
-# </p>
-
-# </div>
-#""", unsafe_allow_html=True)
         # ── PDF ───────────────────────────────────────────────────────────────
         pdf_file = generate_pdf_report(predicted_cls, float(probs[predicted_idx]))
         st.download_button(
