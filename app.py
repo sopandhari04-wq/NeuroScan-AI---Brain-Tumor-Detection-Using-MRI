@@ -397,12 +397,26 @@ Highlights the exact brain region the AI focused on.
 
     # ── Grad-CAM function ──────────────────────────────────────────────────────
     def compute_gradcam(keras_model, img_array, pred_idx):
-        last_conv_layer  = keras_model.get_layer('mobilenetv2_1.00_128')
-        last_conv_output = last_conv_layer.get_layer('out_relu').output
+        # Auto-detect last Conv2D layer — no hardcoded names
+        last_conv_layer = None
+        for layer in reversed(keras_model.layers):
+            if isinstance(layer, tf.keras.layers.Conv2D):
+                last_conv_layer = layer
+                break
+            # Also check inside nested models (MobileNetV2)
+            if hasattr(layer, 'layers'):
+                for sublayer in reversed(layer.layers):
+                    if isinstance(sublayer, tf.keras.layers.Conv2D) or \
+                       isinstance(sublayer, tf.keras.layers.DepthwiseConv2D) or \
+                       sublayer.name == 'out_relu':
+                        last_conv_layer = sublayer
+                        break
+                if last_conv_layer:
+                    break
 
         grad_model = tf.keras.models.Model(
             inputs=keras_model.input,
-            outputs=[last_conv_output, keras_model.output]
+            outputs=[last_conv_layer.output, keras_model.output]
         )
 
         with tf.GradientTape() as tape:
