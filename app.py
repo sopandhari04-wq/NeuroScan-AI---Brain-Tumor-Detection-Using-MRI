@@ -396,11 +396,17 @@ CNN trained on 3,000+ labelled MRI samples.
     # ⚠️ ONLY CHANGE: "new_model.keras" → "new_model.h5" and removed safe_mode
     @st.cache_resource
     def load_model():
-        model = tf.keras.models.load_model(
-            "models/brain_tumor_model.h5",  
-             compile=False
-        )
-        return model
+        import tensorflow as tf
+        interpreter = tf.lite.Interpreter(model_path="models/model.tflite")
+        interpreter.allocate_tensors()
+        return interpreter
+
+    def predict(interpreter, img_array):
+        input_details  = interpreter.get_input_details()
+        output_details = interpreter.get_output_details()
+        interpreter.set_tensor(input_details[0]['index'], img_array.astype('float32'))
+        interpreter.invoke()
+        return interpreter.get_tensor(output_details[0]['index'])[0]
 
     # ── PDF ────────────────────────────────────────────────────────────────────
     def generate_pdf_report(predicted_cls, confidence):
@@ -452,7 +458,7 @@ CNN trained on 3,000+ labelled MRI samples.
         img_array   = np.expand_dims(img_array, axis=0) / 255.0
 
         with st.spinner("Analysing scan…"):
-            prediction = model.predict(img_array)
+            prediction = [predict(model, img_array)]
 
         probs         = prediction[0]
         predicted_idx = int(np.argmax(probs))
