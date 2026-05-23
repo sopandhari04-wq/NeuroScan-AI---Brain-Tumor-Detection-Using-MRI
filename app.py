@@ -396,10 +396,9 @@ CNN trained on 3,000+ labelled MRI samples.
     # ⚠️ ONLY CHANGE: "new_model.keras" → "new_model.h5" and removed safe_mode
     @st.cache_resource
     def load_model():
-        import tensorflow as tf
         model = tf.keras.models.load_model(
-            "models/new_model.keras",
-            compile=False
+            "models/new_model.h5",    
+             compile=False
         )
         return model
 
