@@ -11,6 +11,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import letter
 from io import BytesIO
 from datetime import datetime
+import matplotlib.pyplot as plt
 
 # ── Must be FIRST Streamlit call ───────────────────────────────────────────────
 st.set_page_config(page_title="NeuroScan AI", page_icon="🧠", layout="centered")
@@ -20,7 +21,7 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  SHARED CSS  (applied to every page)
+#  SHARED CSS
 # ══════════════════════════════════════════════════════════════════════════════
 SHARED_CSS = """
 <style>
@@ -35,7 +36,6 @@ html, body, .stApp {
 }
 #MainMenu, footer, header { visibility: hidden; }
 
-/* ambient glow */
 .stApp::before {
     content: '';
     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
@@ -45,7 +45,6 @@ html, body, .stApp {
         radial-gradient(ellipse 40% 30% at 50% 50%, rgba(0,200,180,0.04) 0%, transparent 65%);
     pointer-events: none; z-index: 0;
 }
-/* scanline */
 .stApp::after {
     content: '';
     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
@@ -57,7 +56,6 @@ html, body, .stApp {
 .element-container, .stMarkdown, .stSpinner,
 .stButton, .stDownloadButton { position: relative; z-index: 1; }
 
-/* ── Streamlit input overrides ── */
 [data-testid="stTextInput"] input {
     background: rgba(0,200,180,0.04) !important;
     border: 1px solid rgba(0,200,180,0.2) !important;
@@ -81,7 +79,6 @@ html, body, .stApp {
     text-transform: uppercase !important;
 }
 
-/* ── Primary button ── */
 [data-testid="stButton"] > button {
     background: linear-gradient(135deg, #00C8B4 0%, #0097A7 100%) !important;
     color: #07090F !important;
@@ -104,7 +101,6 @@ html, body, .stApp {
 }
 [data-testid="stButton"] > button:active { transform: translateY(0) !important; }
 
-/* ── Download button ── */
 [data-testid="stDownloadButton"] > button {
     background: rgba(0,200,180,0.08) !important;
     color: #00C8B4 !important;
@@ -120,14 +116,12 @@ html, body, .stApp {
     border-color: rgba(0,200,180,0.55) !important;
 }
 
-/* ── Alerts ── */
 [data-testid="stAlert"] {
     border-radius: 10px !important;
     font-family: 'DM Mono', monospace !important;
     font-size: 0.78rem !important;
 }
 
-/* ── Sidebar ── */
 [data-testid="stSidebar"] {
     background: rgba(10,13,21,0.97) !important;
     border-right: 1px solid rgba(0,200,180,0.10) !important;
@@ -140,7 +134,6 @@ html, body, .stApp {
     font-size: 0.78rem !important; color: #4A6070 !important; line-height: 1.7 !important;
 }
 
-/* ── Images ── */
 [data-testid="stImage"] {
     border-radius: 12px; overflow: hidden;
     border: 1px solid rgba(0,200,180,0.14);
@@ -149,7 +142,6 @@ html, body, .stApp {
 }
 [data-testid="stImage"] img { border-radius: 12px; }
 
-/* ── File uploader ── */
 [data-testid="stFileUploader"] { background: transparent !important; position: relative; z-index: 1; }
 [data-testid="stFileUploader"] > div {
     background: rgba(0,200,180,0.03) !important;
@@ -205,11 +197,9 @@ if not st.session_state.logged_in:
     <style>
     *{box-sizing:border-box;margin:0;padding:0;}
     body{background:transparent;font-family:'DM Mono',monospace;color:#C8D6E5;}
-
     .hero {
         display:flex; flex-direction:column; align-items:center;
-        padding: 3.5rem 1.5rem 2rem;
-        text-align:center; position:relative;
+        padding: 3.5rem 1.5rem 2rem; text-align:center; position:relative;
     }
     .badge {
         display:inline-flex; align-items:center; gap:0.4rem;
@@ -221,7 +211,6 @@ if not st.session_state.logged_in:
     .dot { width:6px;height:6px;border-radius:50%;background:#00C8B4;
            animation:pulse 2s ease-in-out infinite; }
     @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.4;transform:scale(0.7);}}
-
     .logo {
         font-family:'Syne',sans-serif; font-size:clamp(2.6rem,7vw,3.8rem);
         font-weight:800; letter-spacing:-0.03em; line-height:1;
@@ -229,8 +218,6 @@ if not st.session_state.logged_in:
     }
     .logo span{color:#00C8B4;}
     .tagline { font-size:0.78rem; color:#3A5A70; letter-spacing:0.08em; margin-bottom:2.2rem; }
-
-    /* stat chips */
     .stats { display:flex; gap:1rem; margin-bottom:2.4rem; justify-content:center; flex-wrap:wrap; }
     .stat {
         background:rgba(0,200,180,0.05); border:1px solid rgba(0,200,180,0.14);
@@ -238,8 +225,6 @@ if not st.session_state.logged_in:
     }
     .stat-val { font-family:'Syne',sans-serif; font-size:1.15rem; font-weight:700; color:#00C8B4; }
     .stat-lbl { font-size:0.58rem; letter-spacing:0.18em; color:#3A5A70; text-transform:uppercase; margin-top:0.1rem; }
-
-    /* card */
     .card {
         width:100%; max-width:420px;
         background:rgba(10,14,22,0.85);
@@ -255,13 +240,8 @@ if not st.session_state.logged_in:
         content:''; position:absolute; top:0; left:0; right:0; height:2px;
         background:linear-gradient(90deg,transparent,#00C8B4,transparent);
     }
-    .card-title {
-        font-family:'Syne',sans-serif; font-size:1.15rem; font-weight:700;
-        color:#EEF4FF; margin-bottom:0.3rem;
-    }
+    .card-title { font-family:'Syne',sans-serif; font-size:1.15rem; font-weight:700; color:#EEF4FF; margin-bottom:0.3rem; }
     .card-sub { font-size:0.68rem; color:#3A5060; letter-spacing:0.06em; margin-bottom:1.8rem; }
-
-    /* feature pills */
     .features { display:flex; flex-direction:column; gap:0.55rem; margin-bottom:2rem; }
     .feat {
         display:flex; align-items:center; gap:0.65rem;
@@ -271,14 +251,9 @@ if not st.session_state.logged_in:
     }
     .feat-icon { font-size:0.9rem; }
     .feat strong { color:#8ABFC8; font-weight:500; }
-
     .sep { height:1px; background:linear-gradient(90deg,transparent,rgba(0,200,180,0.18),transparent); margin:1.5rem 0; }
     .signin-lbl { font-size:0.6rem; letter-spacing:0.28em; color:#3A5060; text-transform:uppercase; margin-bottom:1.2rem; }
-
-    .disclaimer {
-        margin-top:1.6rem; font-size:0.6rem; color:#1E3040;
-        letter-spacing:0.06em; text-align:center; line-height:1.6;
-    }
+    .disclaimer { margin-top:1.6rem; font-size:0.6rem; color:#1E3040; letter-spacing:0.06em; text-align:center; line-height:1.6; }
     </style>
     </head>
     <body>
@@ -292,21 +267,17 @@ if not st.session_state.logged_in:
             <div class="stat"><div class="stat-val">CNN</div><div class="stat-lbl">Architecture</div></div>
             <div class="stat"><div class="stat-val">Grad-CAM</div><div class="stat-lbl">Explainability</div></div>
         </div>
-
         <div class="card">
             <div class="card-title">Secure Access</div>
             <div class="card-sub">Authorized personnel only · Research environment</div>
-
             <div class="features">
                 <div class="feat"><span class="feat-icon">🧠</span><span>Detects <strong>Glioma, Meningioma, Pituitary</strong> &amp; No Tumor</span></div>
                 <div class="feat"><span class="feat-icon">🔥</span><span><strong>Grad-CAM</strong> attention heatmaps for explainability</span></div>
                 <div class="feat"><span class="feat-icon">📄</span><span>One-click <strong>PDF report</strong> generation</span></div>
             </div>
-
             <div class="sep"></div>
             <div class="signin-lbl">Sign in to continue</div>
         </div>
-
         <div class="disclaimer">
             NeuroScan AI · Research prototype · Not for clinical use<br>
             © 2025 · For educational and research purposes only
@@ -317,14 +288,10 @@ if not st.session_state.logged_in:
 
     components.html(LOGIN_HTML, height=680, scrolling=False)
 
-    # ── Centered input form ────────────────────────────────────────────────────
     col_l, col_m, col_r = st.columns([1, 2, 1])
     with col_m:
         st.markdown("""
-        <style>
-        /* keep the form inputs inside the card look */
-        [data-testid="stTextInput"] { margin-bottom: 0.4rem; }
-        </style>
+        <style>[data-testid="stTextInput"] { margin-bottom: 0.4rem; }</style>
         """, unsafe_allow_html=True)
 
         username = st.text_input("Username", placeholder="Enter username")
@@ -345,7 +312,7 @@ if not st.session_state.logged_in:
     </div>""", unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  MAIN APP  (post-login)
+#  MAIN APP
 # ══════════════════════════════════════════════════════════════════════════════
 else:
 
@@ -357,7 +324,7 @@ else:
 
     # ── Sidebar ────────────────────────────────────────────────────────────────
     with st.sidebar:
-        st.markdown('<span class="sidebar-badge">v2.0 · CNN Model</span>', unsafe_allow_html=True)
+        st.markdown('<span class="sidebar-badge">v2.1 · CNN + Grad-CAM</span>', unsafe_allow_html=True)
         st.markdown("## NeuroScan AI")
         st.markdown("""
 A deep learning classifier trained on contrast-enhanced MRI scans to identify four neurological conditions.
@@ -368,11 +335,14 @@ A deep learning classifier trained on contrast-enhanced MRI scans to identify fo
 - Pituitary adenoma
 - No tumor
 
-**Input spec**  
+**Input spec**
 JPG / PNG · 128 × 128 px internal
 
-**Architecture**  
+**Architecture**
 CNN trained on 3,000+ labelled MRI samples.
+
+**New · Grad-CAM**
+Highlights the exact brain region the AI focused on.
 
 ---
 *For research and educational use only. Not a clinical diagnostic tool.*
@@ -385,18 +355,16 @@ CNN trained on 3,000+ labelled MRI samples.
     # ── Header ─────────────────────────────────────────────────────────────────
     st.markdown("""
     <div class="header-wrap">
-        <div class="header-eyebrow">Deep Learning · MRI Analysis</div>
+        <div class="header-eyebrow">Deep Learning · MRI Analysis · Grad-CAM XAI</div>
         <div class="header-title">Neuro<span>Scan</span> AI</div>
-        <div class="header-sub">Upload a brain MRI scan — get an instant classification</div>
+        <div class="header-sub">Upload a brain MRI scan — get an instant classification + heatmap</div>
     </div>
     <div class="divider"></div>
     """, unsafe_allow_html=True)
 
-    # ── Load model ─────────────────────────────────────────────────────────────
-    # ⚠️ ONLY CHANGE: "new_model.keras" → "new_model.h5" and removed safe_mode
+    # ── TFLite model (for fast prediction) ────────────────────────────────────
     @st.cache_resource
     def load_model():
-        import tensorflow as tf
         interpreter = tf.lite.Interpreter(model_path="models/model.tflite")
         interpreter.allocate_tensors()
         return interpreter
@@ -407,6 +375,58 @@ CNN trained on 3,000+ labelled MRI samples.
         interpreter.set_tensor(input_details[0]['index'], img_array.astype('float32'))
         interpreter.invoke()
         return interpreter.get_tensor(output_details[0]['index'])[0]
+
+    # ── Keras model (for Grad-CAM only) ───────────────────────────────────────
+    @st.cache_resource
+    def load_keras_model():
+        base_model = tf.keras.applications.MobileNetV2(
+            weights='imagenet', include_top=False, input_shape=(128, 128, 3)
+        )
+        base_model.trainable = False
+        model = tf.keras.Sequential([
+            base_model,
+            tf.keras.layers.GlobalAveragePooling2D(),
+            tf.keras.layers.Dense(128, activation='relu'),
+            tf.keras.layers.Dense(4, activation='softmax')
+        ])
+        model.load_weights("models/brain_tumor_model.h5", by_name=False, skip_mismatch=True)
+        return model
+
+    # ── Grad-CAM function ──────────────────────────────────────────────────────
+    def compute_gradcam(keras_model, img_array, pred_idx):
+        # Target last conv layer of MobileNetV2
+        last_conv_layer = keras_model.get_layer('mobilenetv2_1.00_128')
+        last_conv_output = last_conv_layer.get_layer('out_relu').output
+
+        grad_model = tf.keras.models.Model(
+            inputs=keras_model.input,
+            outputs=[last_conv_output, keras_model.output]
+        )
+
+        with tf.GradientTape() as tape:
+            conv_outputs, predictions = grad_model(img_array, training=False)
+            class_score = predictions[:, pred_idx]
+
+        grads   = tape.gradient(class_score, conv_outputs)
+        weights = tf.reduce_mean(grads, axis=(0, 1, 2))
+        cam     = tf.reduce_sum(tf.multiply(weights, conv_outputs[0]), axis=-1)
+        cam     = tf.nn.relu(cam).numpy()
+        cam     = (cam - cam.min()) / (cam.max() - cam.min() + 1e-8)
+        return cam
+
+    def overlay_gradcam(pil_img, cam):
+        # Resize CAM to image size
+        cam_resized = cv2.resize(cam, (pil_img.width, pil_img.height))
+        cam_uint8   = np.uint8(255 * cam_resized)
+
+        # Apply jet colormap
+        colormap  = plt.get_cmap('jet')
+        heatmap   = np.uint8(colormap(cam_uint8 / 255.0) * 255)[..., :3]
+
+        # Overlay on original
+        original  = np.array(pil_img.convert("RGB"), dtype=np.float32)
+        overlay   = (0.45 * heatmap + 0.55 * original).astype(np.uint8)
+        return Image.fromarray(overlay), Image.fromarray(heatmap)
 
     # ── PDF ────────────────────────────────────────────────────────────────────
     def generate_pdf_report(predicted_cls, confidence):
@@ -466,7 +486,7 @@ CNN trained on 3,000+ labelled MRI samples.
         pct           = int(probs[predicted_idx] * 100)
         accent        = class_colors[predicted_cls]
 
-        # chips
+        # ── Chips ──────────────────────────────────────────────────────────────
         chips_html = ""
         for i, cls in enumerate(class_names):
             active = i == predicted_idx
@@ -524,39 +544,45 @@ CNN trained on 3,000+ labelled MRI samples.
 
         components.html(card_html, height=300, scrolling=False)
 
+        # ── Grad-CAM Section ───────────────────────────────────────────────────
         st.markdown("""
-    <div style="
-    padding:20px;
-    border-radius:18px;
-    background:rgba(255,255,255,0.03);
-    border:1px solid rgba(0,255,255,0.15);
-    margin-top:30px;
-    ">
+        <div style="margin-top:2rem;margin-bottom:0.8rem;">
+            <span style="font-size:0.68rem;letter-spacing:0.25em;text-transform:uppercase;
+                         color:#3A5A70;">🔥 Grad-CAM · AI Attention Heatmap</span>
+        </div>
+        """, unsafe_allow_html=True)
 
-    <h2 style="color:white;">
-    🔥 MRI Heatmap Visualization
-    </h2>
+        with st.spinner("Generating Grad-CAM heatmap…"):
+            try:
+                keras_model = load_keras_model()
+                cam         = compute_gradcam(keras_model, img_array, predicted_idx)
+                overlay_img, heatmap_img = overlay_gradcam(img, cam)
 
-    <p style="
-    color:#9aa4b2;
-    font-size:16px;
-    line-height:1.8;
-    ">
-    Advanced Grad-CAM visualization module is currently under optimization for NeuroScan AI.
-    </p>
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    st.markdown('<p style="font-size:0.65rem;letter-spacing:0.2em;color:#3A5060;text-transform:uppercase;margin-bottom:0.4rem;">Original MRI</p>', unsafe_allow_html=True)
+                    st.image(img, use_container_width=True)
+                with col_b:
+                    st.markdown('<p style="font-size:0.65rem;letter-spacing:0.2em;color:#3A5060;text-transform:uppercase;margin-bottom:0.4rem;">Grad-CAM Overlay</p>', unsafe_allow_html=True)
+                    st.image(overlay_img, use_container_width=True)
 
-    <p style="
-    color:#00ffd5;
-    font-size:14px;
-    ">
-    ✔ Future release will include:
-    <br>• Tumor localization
-    <br>• MRI attention mapping
-    <br>• Neural activation visualization
-    </p>
+                # Explanation card
+                st.markdown(f"""
+                <div style="padding:1rem 1.4rem;border-radius:12px;
+                            background:rgba(0,200,180,0.04);
+                            border:1px solid rgba(0,200,180,0.15);
+                            margin-top:0.8rem;font-size:0.72rem;color:#4A7080;line-height:1.8;">
+                    🔴 <strong style="color:#EEF4FF;">Red/Yellow regions</strong> — areas the AI focused on most<br>
+                    🔵 <strong style="color:#EEF4FF;">Blue/Green regions</strong> — less relevant areas<br>
+                    <span style="color:#3A5060;font-size:0.65rem;">
+                        Grad-CAM uses gradients from the last convolutional layer to show which pixels
+                        most influenced the <strong style="color:{accent};">{class_display[predicted_cls]}</strong> prediction.
+                    </span>
+                </div>
+                """, unsafe_allow_html=True)
 
-    </div>
-    """, unsafe_allow_html=True)
+            except Exception as e:
+                st.info(f"Grad-CAM unavailable: {e}")
 
         # ── PDF ───────────────────────────────────────────────────────────────
         pdf_file = generate_pdf_report(predicted_cls, float(probs[predicted_idx]))
