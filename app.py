@@ -51,11 +51,11 @@ def load_users():
         }
         save_users(default)
         return default
-    with open(USERS_FILE, "r") as f:
+    with open(USERS_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
 def save_users(users):
-    with open(USERS_FILE, "w") as f:
+    with open(USERS_FILE, "w", encoding="utf-8") as f:
         json.dump(users, f, indent=2)
 
 def add_scan_record(username, predicted_cls, confidence, mode):
@@ -314,15 +314,31 @@ if not st.session_state.logged_in:
         username = st.text_input("Username", placeholder="Enter username")
         password = st.text_input("Password", type="password", placeholder="Enter password")
         if st.button("Sign In →"):
+
             users = load_users()
-            if username in users and users[username]["password"] == password:
-                st.session_state.logged_in = True
-                st.session_state.username  = username
-                st.session_state.role      = users[username]["role"]
-                st.session_state.user_name = users[username]["name"]
-                st.rerun()
+
+            username = username.strip()
+            password = password.strip()
+
+            if username in users:
+
+                saved_password = str(users[username]["password"]).strip()
+
+                if saved_password == password:
+
+                    st.session_state.logged_in = True
+                    st.session_state.username  = username
+                    st.session_state.role      = users[username]["role"]
+                    st.session_state.user_name = users[username]["name"]
+
+                    st.success("Login successful")
+                    st.rerun()
+
+                else:
+                    st.error("Wrong password")
+
             else:
-                st.error("Invalid credentials. Please try again.")
+                st.error("User not found")
 
     st.markdown("""<div style="text-align:center;margin-top:1rem;font-size:0.6rem;
                 color:#1E3040;letter-spacing:0.15em;text-transform:uppercase;position:relative;z-index:1;">
@@ -425,12 +441,13 @@ Welcome, **{st.session_state.user_name}**!
                     if new_user in users:
                         st.error("Username already exists!")
                     else:
-                        users[new_user] = {
-                            "password": new_pass, "role": new_role,
-                            "name": new_name,
-                            "created": datetime.now().strftime("%Y-%m-%d"),
-                            "scans": []
-                        }
+                        users[new_user.strip()] = {
+    "password": str(new_pass).strip(),
+    "role": str(new_role).strip().lower(),
+    "name": str(new_name).strip(),
+    "created": datetime.now().strftime("%Y-%m-%d"),
+    "scans": []
+}
                         save_users(users)
                         st.success(f"✅ User '{new_user}' added successfully!")
                         st.rerun()
