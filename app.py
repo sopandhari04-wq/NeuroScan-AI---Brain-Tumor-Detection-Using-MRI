@@ -943,11 +943,36 @@ Welcome, **{st.session_state.user_name}**!
                 accent        = class_colors[predicted_cls]
 
                 # Save to history
-                add_scan_record(st.session_state.username, predicted_cls,
-                                float(probs[predicted_idx]), "Multi-Modal Fusion")
+                # Prevent duplicate history entries
+                current_scan = {
+                    "prediction": predicted_cls,
+                    "confidence": round(float(probs[predicted_idx]), 2),
+                    "mode": "Multi-Modal Fusion"
+                }
 
-                card_html, accent = result_card(predicted_cls, probs, predicted_idx,
-                                                class_names, class_display, class_colors)
+                if "last_scan" not in st.session_state:
+                    st.session_state.last_scan = None
+
+                if st.session_state.last_scan != current_scan:
+
+                    add_scan_record(
+                        st.session_state.username,
+                        predicted_cls,
+                        float(probs[predicted_idx]),
+                        "Multi-Modal Fusion"
+                    )
+
+                    st.session_state.last_scan = current_scan
+
+                card_html, accent = result_card(
+                    predicted_cls,
+                    probs,
+                    predicted_idx,
+                    class_names,
+                    class_display,
+                    class_colors
+                )
+
                 components.html(card_html, height=300, scrolling=False)
 
                 st.markdown("""<div style="margin-top:2rem;margin-bottom:0.8rem;">
