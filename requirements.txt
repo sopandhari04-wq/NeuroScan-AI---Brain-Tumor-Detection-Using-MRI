@@ -8,4 +8,4 @@ reportlab
 nibabel
 h5py
 kaggle
-supabase==2.3.0
+supabase==2.15.0
