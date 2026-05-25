@@ -340,7 +340,7 @@ if not st.session_state.logged_in:
         <div class="disclaimer">NeuroScan AI · Research prototype · Not for clinical use<br>© 2026· For educational and research purposes only</div>
     </div></body></html>"""
 
-    components.html(LOGIN_HTML, height=750, scrolling=False)
+    components.html(LOGIN_HTML, height=800, scrolling=False)
     col_l, col_m, col_r = st.columns([1, 2, 1])
     with col_m:
         st.markdown("<style>[data-testid='stTextInput']{margin-bottom:0.4rem;}</style>", unsafe_allow_html=True)
@@ -868,7 +868,7 @@ Welcome, **{st.session_state.user_name}**!
 
                 add_scan_record(st.session_state.username, predicted_cls, float(probs[predicted_idx]), "Single MRI")
                 card_html, accent = result_card(predicted_cls, probs, predicted_idx, class_names, class_display, class_colors)
-                components.html(card_html, height=450, scrolling=False)
+                components.html(card_html, height=300, scrolling=False)
 
                 # ── Grad-CAM ──────────────────────────────────────────────────
                 st.markdown("""<div style="margin-top:2rem;margin-bottom:0.8rem;">
@@ -994,7 +994,7 @@ Welcome, **{st.session_state.user_name}**!
                     st.session_state.last_scan = current_scan
 
                 card_html, accent = result_card(predicted_cls, probs, predicted_idx, class_names, class_display, class_colors)
-                components.html(card_html, height=450, scrolling=False)
+                components.html(card_html, height=300, scrolling=False)
 
                 st.markdown("""<div style="margin-top:2rem;margin-bottom:0.8rem;">
                     <span style="font-size:0.68rem;letter-spacing:0.25em;text-transform:uppercase;color:#3A5A70;">
