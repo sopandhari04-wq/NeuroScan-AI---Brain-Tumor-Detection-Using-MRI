@@ -340,7 +340,7 @@ if not st.session_state.logged_in:
         <div class="disclaimer">NeuroScan AI · Research prototype · Not for clinical use<br>© 2025 · For educational and research purposes only</div>
     </div></body></html>"""
 
-    components.html(LOGIN_HTML, height=780, scrolling=False)
+    components.html(LOGIN_HTML, height=900, scrolling=False)
     col_l, col_m, col_r = st.columns([1, 2, 1])
     with col_m:
         st.markdown("<style>[data-testid='stTextInput']{margin-bottom:0.4rem;}</style>", unsafe_allow_html=True)
