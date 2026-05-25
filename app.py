@@ -340,7 +340,7 @@ if not st.session_state.logged_in:
         <div class="disclaimer">NeuroScan AI · Research prototype · Not for clinical use<br>© 2025 · For educational and research purposes only</div>
     </div></body></html>"""
 
-    components.html(LOGIN_HTML, height=900, scrolling=False)
+    components.html(LOGIN_HTML, height=1400, scrolling=False)
     col_l, col_m, col_r = st.columns([1, 2, 1])
     with col_m:
         st.markdown("<style>[data-testid='stTextInput']{margin-bottom:0.4rem;}</style>", unsafe_allow_html=True)
@@ -414,7 +414,7 @@ Welcome, **{st.session_state.user_name}**!
         <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
         <style>*{{box-sizing:border-box;margin:0;padding:0;}}body{{background:transparent;font-family:'DM Mono',monospace;padding:0.5rem 0;}}
         .grid{{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;}}
-        .card{{background:rgba(0,200,180,0.04);border:1px solid rgba(0,200,180,0.15);border-radius:14px;padding:1.2rem 1rem;text-align:center;position:relative;overflow:hidden;}}
+        .card{{background:rgba(0,200,180,0.04);border:1px solid rgba(0,200,180,0.15);border-radius:14px;padding:1.2rem 1rem;text-align:center;position:relative;overflow:auto;}}
         .card::before{{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--c),transparent);}}
         .val{{font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:var(--c);}}
         .lbl{{font-size:0.58rem;letter-spacing:0.2em;text-transform:uppercase;color:#3A5060;margin-top:0.3rem;}}</style></head><body>
