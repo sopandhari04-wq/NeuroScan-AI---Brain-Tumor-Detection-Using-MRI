@@ -682,7 +682,7 @@ Welcome, **{st.session_state.user_name}**!
         cam = np.maximum(cam, 0)
         if cam.max() > 0:
             cam = (cam - cam.min()) / (cam.max() - cam.min() + 1e-8)
-        return cam
+            return cam
 
         def overlay_gradcam(pil_img, cam):
             cam_r = cv2.resize(cam, (pil_img.width, pil_img.height))
