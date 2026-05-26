@@ -618,14 +618,38 @@ Welcome, **{st.session_state.user_name}**!
 
         @st.cache_resource
         def load_keras_model():
-            base = tf.keras.applications.MobileNetV2(weights='imagenet', include_top=False, input_shape=(128,128,3))
-            base.trainable = False
-            return tf.keras.Model(inputs=base.input, outputs=base.get_layer('out_relu').output)
-
-        def compute_gradcam(feat_model, img_array):
-            features = feat_model(img_array, training=False)
-            cam = np.mean(features[0].numpy(), axis=-1)
-            cam = np.maximum(cam, 0)
+            """Load the full Keras model for true Grad-CAM backpropagation."""
+            return tf.keras.models.load_model("models/model.keras")
+ 
+        def find_last_conv_layer(model):
+            """Auto-detect the last Conv2D layer in the model."""
+            for layer in reversed(model.layers):
+                if isinstance(layer, tf.keras.layers.Conv2D):
+                    return layer.name
+            raise ValueError("No Conv2D layer found in model.")
+ 
+        def compute_gradcam(keras_model, img_array, predicted_class_idx):
+            """
+            True Grad-CAM:
+            - Backprops gradients of the predicted class score through the last Conv2D
+            - Weights each feature map channel by its mean gradient
+            - ReLU keeps only regions that positively drove the prediction
+            - Produces a tight focal heatmap over the actual lesion
+            """
+            last_conv_name = find_last_conv_layer(keras_model)
+            grad_model = tf.keras.Model(
+                inputs=keras_model.input,
+                outputs=[keras_model.get_layer(last_conv_name).output, keras_model.output]
+            )
+            with tf.GradientTape() as tape:
+                inputs = tf.cast(img_array, tf.float32)
+                conv_outputs, predictions = grad_model(inputs)
+                loss = predictions[:, predicted_class_idx]
+            grads        = tape.gradient(loss, conv_outputs)           # (1, H, W, C)
+            pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))       # (C,)
+            conv_outputs = conv_outputs[0]                             # (H, W, C)
+            cam = tf.reduce_sum(pooled_grads * conv_outputs, axis=-1).numpy()
+            cam = np.maximum(cam, 0)                                   # ReLU
             if cam.max() > 0:
                 cam = (cam - cam.min()) / (cam.max() - cam.min() + 1e-8)
             return cam
