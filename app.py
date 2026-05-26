@@ -639,37 +639,50 @@ Welcome, **{st.session_state.user_name}**!
             return model
 
         def find_last_conv_layer(model):
-            """Auto-detect the last Conv2D layer in the model."""
-            for layer in reversed(model.layers):
-                if isinstance(layer, tf.keras.layers.Conv2D):
-                    return layer.name
-            raise ValueError("No Conv2D layer found in model.")
- 
+            """Search recursively through nested submodels to find the last Conv2D."""
+            last_conv = None
+            for layer in model.layers:
+                # if this layer is itself a model (e.g. MobileNetV2 submodel), go inside it
+                if hasattr(layer, 'layers'):
+                    for sublayer in layer.layers:
+                        if isinstance(sublayer, tf.keras.layers.Conv2D):
+                            last_conv = sublayer.name
+                elif isinstance(layer, tf.keras.layers.Conv2D):
+                    last_conv = layer.name
+            if last_conv is None:
+                raise ValueError("No Conv2D layer found in model.")
+            return last_conv
         def compute_gradcam(keras_model, img_array, predicted_class_idx):
-            """
-            True Grad-CAM:
-            - Backprops gradients of the predicted class score through the last Conv2D
-            - Weights each feature map channel by its mean gradient
-            - ReLU keeps only regions that positively drove the prediction
-            - Produces a tight focal heatmap over the actual lesion
-            """
-            last_conv_name = find_last_conv_layer(keras_model)
-            grad_model = tf.keras.Model(
-                inputs=keras_model.input,
-                outputs=[keras_model.get_layer(last_conv_name).output, keras_model.output]
-            )
-            with tf.GradientTape() as tape:
-                inputs = tf.cast(img_array, tf.float32)
-                conv_outputs, predictions = grad_model(inputs)
-                loss = predictions[:, predicted_class_idx]
-            grads        = tape.gradient(loss, conv_outputs)           # (1, H, W, C)
-            pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))       # (C,)
-            conv_outputs = conv_outputs[0]                             # (H, W, C)
-            cam = tf.reduce_sum(pooled_grads * conv_outputs, axis=-1).numpy()
-            cam = np.maximum(cam, 0)                                   # ReLU
-            if cam.max() > 0:
-                cam = (cam - cam.min()) / (cam.max() - cam.min() + 1e-8)
-            return cam
+         last_conv_name = find_last_conv_layer(keras_model)
+
+        # get the actual submodel that contains the conv layer (MobileNetV2)
+        submodel = None
+        for layer in keras_model.layers:
+            if hasattr(layer, 'layers'):
+                for sublayer in layer.layers:
+                    if sublayer.name == last_conv_name:
+                        submodel = layer
+                        break
+
+        # build grad model: input → [last conv output, final predictions]
+        grad_model = tf.keras.Model(
+            inputs=keras_model.input,
+            outputs=[submodel.get_layer(last_conv_name).output, keras_model.output]
+        )
+
+        with tf.GradientTape() as tape:
+            inputs = tf.cast(img_array, tf.float32)
+            conv_outputs, predictions = grad_model(inputs)
+            loss = predictions[:, predicted_class_idx]
+
+        grads        = tape.gradient(loss, conv_outputs)
+        pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
+        conv_outputs = conv_outputs[0]
+        cam = tf.reduce_sum(pooled_grads * conv_outputs, axis=-1).numpy()
+        cam = np.maximum(cam, 0)
+        if cam.max() > 0:
+            cam = (cam - cam.min()) / (cam.max() - cam.min() + 1e-8)
+        return cam
 
         def overlay_gradcam(pil_img, cam):
             cam_r = cv2.resize(cam, (pil_img.width, pil_img.height))
