@@ -57,7 +57,7 @@ history = model.fit(
     epochs=10
 )
 
-model.save("models/model.keras")
+model.save_weights("models/model_weights.weights.h5")
 
 # Save as .h5 (works on all Keras versions)
 os.makedirs("models", exist_ok=True)

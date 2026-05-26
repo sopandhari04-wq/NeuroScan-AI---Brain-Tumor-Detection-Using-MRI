@@ -618,31 +618,25 @@ Welcome, **{st.session_state.user_name}**!
 
         @st.cache_resource
         def load_keras_model():
-            """Load Keras model with version-mismatch fix for BatchNormalization."""
-            import keras
-            from keras.layers import BatchNormalization
 
-            class CompatBatchNorm(BatchNormalization):
-                def __init__(self, **kwargs):
-                    # Strip out old kwargs that new Keras no longer accepts
-                    kwargs.pop("renorm", None)
-                    kwargs.pop("renorm_clipping", None)
-                    kwargs.pop("renorm_momentum", None)
-                    kwargs.pop("axis", None)  # sometimes causes issues too
-                    super().__init__(**kwargs)
-
-                @classmethod
-                def from_config(cls, config):
-                    config.pop("renorm", None)
-                    config.pop("renorm_clipping", None)
-                    config.pop("renorm_momentum", None)
-                    return super().from_config(config)
-
-            return tf.keras.models.load_model(
-                "models/model.keras",
-                custom_objects={"BatchNormalization": CompatBatchNorm},
-                compile=False  # skip optimizer reload, not needed for Grad-CAM
+            base = tf.keras.applications.MobileNetV2(
+                weights=None,
+                include_top=False,
+                input_shape=(128, 128, 3)
             )
+
+            inputs = tf.keras.Input(shape=(128, 128, 3))
+
+            x = base(inputs, training=False)
+            x = tf.keras.layers.GlobalAveragePooling2D()(x)
+            x = tf.keras.layers.Dense(128, activation='relu')(x)
+            outputs = tf.keras.layers.Dense(4, activation='softmax')(x)
+
+            model = tf.keras.Model(inputs, outputs)
+
+            model.load_weights("models/model_weights.weights.h5")
+
+            return model
 
         def find_last_conv_layer(model):
             """Auto-detect the last Conv2D layer in the model."""
