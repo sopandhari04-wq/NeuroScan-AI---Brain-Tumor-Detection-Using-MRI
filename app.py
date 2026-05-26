@@ -604,71 +604,32 @@ Welcome, **{st.session_state.user_name}**!
         </div><div class="divider"></div>""", unsafe_allow_html=True)
 
         @st.cache_resource
+        def load_model():
+            interpreter = tf.lite.Interpreter(model_path="models/model.tflite")
+            interpreter.allocate_tensors()
+            return interpreter
+
+        def predict(interpreter, img_array):
+            inp = interpreter.get_input_details()[0]
+            out = interpreter.get_output_details()[0]
+            interpreter.set_tensor(inp['index'], img_array.astype('float32'))
+            interpreter.invoke()
+            return interpreter.get_tensor(out['index'])[0]
+
+        @st.cache_resource
         def load_keras_model():
-            """Rebuild model and load weights — avoids all Keras version issues."""
-            base = tf.keras.applications.MobileNetV2(
-                weights=None,
-                include_top=False,
-                input_shape=(128, 128, 3)
-            )
-            inputs  = tf.keras.Input(shape=(128, 128, 3))
-            x       = base(inputs, training=False)
-            x       = tf.keras.layers.GlobalAveragePooling2D()(x)
-            x       = tf.keras.layers.Dense(128, activation='relu')(x)
-            outputs = tf.keras.layers.Dense(4, activation='softmax')(x)
-            model   = tf.keras.Model(inputs, outputs)
-            model.load_weights("models/model_weights.weights.h5")
-            return model
+            base = tf.keras.applications.MobileNetV2(weights='imagenet', include_top=False, input_shape=(128,128,3))
+            base.trainable = False
+            return tf.keras.Model(inputs=base.input, outputs=base.get_layer('out_relu').output)
 
-        def find_last_conv_layer(model):
-            """Find last Conv2D inside MobileNetV2 submodel."""
-            for layer in reversed(model.layers):
-                # dig into submodels (MobileNetV2)
-                if hasattr(layer, 'layers'):
-                    for sublayer in reversed(layer.layers):
-                        if isinstance(sublayer, tf.keras.layers.Conv2D):
-                            return layer.name, sublayer.name
-                elif isinstance(layer, tf.keras.layers.Conv2D):
-                    return None, layer.name
-            raise ValueError("No Conv2D found.")
-
-        def compute_gradcam(keras_model, img_array, predicted_class_idx):
-            """True Grad-CAM using the MobileNetV2 submodel's last Conv2D."""
-            submodel_name, last_conv_name = find_last_conv_layer(keras_model)
-
-            # get the MobileNetV2 submodel
-            submodel = keras_model.get_layer(submodel_name)
-
-            # build grad model entirely inside MobileNetV2's own input/output
-            grad_model = tf.keras.Model(
-                inputs=submodel.input,
-                outputs=[
-                    submodel.get_layer(last_conv_name).output,  # last conv feature maps
-                    submodel.output                              # MobileNetV2 final output
-                ]
-            )
-
-            with tf.GradientTape() as tape:
-                inputs = tf.cast(img_array, tf.float32)
-                conv_outputs, submodel_out = grad_model(inputs)
-                # pass submodel output through the rest of your model (GAP → Dense → Dense)
-                # to get the final class scores
-                gap     = keras_model.get_layer('global_average_pooling2d')(submodel_out)
-                dense1  = keras_model.get_layer('dense')(gap)
-                preds   = keras_model.get_layer('dense_1')(dense1)
-                loss    = preds[:, predicted_class_idx]
-
-            grads        = tape.gradient(loss, conv_outputs)
-            pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
-            conv_outputs = conv_outputs[0]
-            cam          = tf.reduce_sum(pooled_grads * conv_outputs, axis=-1).numpy()
-            cam          = np.maximum(cam, 0)
+        def compute_gradcam(feat_model, img_array):
+            features = feat_model(img_array, training=False)
+            cam = np.mean(features[0].numpy(), axis=-1)
+            cam = np.maximum(cam, 0)
             if cam.max() > 0:
                 cam = (cam - cam.min()) / (cam.max() - cam.min() + 1e-8)
             return cam
 
-            
-            
         def overlay_gradcam(pil_img, cam):
             cam_r = cv2.resize(cam, (pil_img.width, pil_img.height))
             hmap  = np.uint8(plt.get_cmap('jet')(np.uint8(255*cam_r)/255.0)*255)[...,:3]
@@ -915,8 +876,8 @@ Welcome, **{st.session_state.user_name}**!
                 cam_analysis = None
                 with st.spinner("Generating heatmap…"):
                     try:
-                        keras_model    = load_keras_model()
-                        cam            = compute_gradcam(keras_model, img_array, predicted_idx)
+                        feat_model     = load_keras_model()
+                        cam            = compute_gradcam(feat_model, img_array)
                         overlay_img, _ = overlay_gradcam(img, cam)
                         col_a,col_b    = st.columns(2)
                         with col_a:
@@ -1002,8 +963,8 @@ Welcome, **{st.session_state.user_name}**!
                 cam_analysis = None
                 with st.spinner("Generating fusion heatmap…"):
                     try:
-                        keras_model    = load_keras_model()
-                        cam            = compute_gradcam(keras_model, fused_input, predicted_idx)
+                        feat_model     = load_keras_model()
+                        cam            = compute_gradcam(feat_model, fused_input)
                         overlay_img, _ = overlay_gradcam(fused_pil, cam)
                         col_a,col_b    = st.columns(2)
                         with col_a:
