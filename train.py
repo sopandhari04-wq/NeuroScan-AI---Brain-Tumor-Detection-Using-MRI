@@ -57,6 +57,8 @@ history = model.fit(
     epochs=10
 )
 
+model.save("models/model.keras")
+
 # Save as .h5 (works on all Keras versions)
 os.makedirs("models", exist_ok=True)
 model.save("models/new_model.h5", save_format="h5")
