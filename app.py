@@ -917,8 +917,8 @@ Welcome, **{st.session_state.user_name}**!
                 cam_analysis = None
                 with st.spinner("Generating heatmap…"):
                     try:
-                        feat_model     = load_keras_model()
-                        cam            = compute_gradcam(feat_model, img_array)
+                        keras_model    = load_keras_model()
+                        cam            = compute_gradcam(keras_model, img_array, predicted_idx)
                         overlay_img, _ = overlay_gradcam(img, cam)
                         col_a,col_b    = st.columns(2)
                         with col_a:
@@ -1004,8 +1004,8 @@ Welcome, **{st.session_state.user_name}**!
                 cam_analysis = None
                 with st.spinner("Generating fusion heatmap…"):
                     try:
-                        feat_model     = load_keras_model()
-                        cam            = compute_gradcam(feat_model, fused_input)
+                        keras_model    = load_keras_model()
+                        cam            = compute_gradcam(keras_model, fused_input, predicted_idx)
                         overlay_img, _ = overlay_gradcam(fused_pil, cam)
                         col_a,col_b    = st.columns(2)
                         with col_a:
