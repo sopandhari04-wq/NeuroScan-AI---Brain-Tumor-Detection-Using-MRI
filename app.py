@@ -652,38 +652,58 @@ Welcome, **{st.session_state.user_name}**!
             if last_conv is None:
                 raise ValueError("No Conv2D layer found in model.")
             return last_conv
+        
         def compute_gradcam(keras_model, img_array, predicted_class_idx):
-         last_conv_name = find_last_conv_layer(keras_model)
 
-        # get the actual submodel that contains the conv layer (MobileNetV2)
-        submodel = None
-        for layer in keras_model.layers:
-            if hasattr(layer, 'layers'):
-                for sublayer in layer.layers:
-                    if sublayer.name == last_conv_name:
-                        submodel = layer
-                        break
+    last_conv_name = find_last_conv_layer(keras_model)
 
-        # build grad model: input → [last conv output, final predictions]
-        grad_model = tf.keras.Model(
-            inputs=keras_model.input,
-            outputs=[submodel.get_layer(last_conv_name).output, keras_model.output]
+    # get the actual submodel that contains the conv layer (MobileNetV2)
+    submodel = None
+
+    for layer in keras_model.layers:
+        if hasattr(layer, 'layers'):
+            for sublayer in layer.layers:
+                if sublayer.name == last_conv_name:
+                    submodel = layer
+                    break
+
+    # build grad model: input → [last conv output, final predictions]
+    grad_model = tf.keras.Model(
+        inputs=keras_model.input,
+        outputs=[
+            submodel.get_layer(last_conv_name).output,
+            keras_model.output
+        ]
+    )
+
+    with tf.GradientTape() as tape:
+
+        inputs = tf.cast(img_array, tf.float32)
+
+        conv_outputs, predictions = grad_model(inputs)
+
+        loss = predictions[:, predicted_class_idx]
+
+    grads = tape.gradient(loss, conv_outputs)
+
+    pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
+
+    conv_outputs = conv_outputs[0]
+
+    cam = tf.reduce_sum(
+        pooled_grads * conv_outputs,
+        axis=-1
+    ).numpy()
+
+    cam = np.maximum(cam, 0)
+
+    if cam.max() > 0:
+        cam = (cam - cam.min()) / (
+            cam.max() - cam.min() + 1e-8
         )
 
-        with tf.GradientTape() as tape:
-            inputs = tf.cast(img_array, tf.float32)
-            conv_outputs, predictions = grad_model(inputs)
-            loss = predictions[:, predicted_class_idx]
-
-        grads        = tape.gradient(loss, conv_outputs)
-        pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
-        conv_outputs = conv_outputs[0]
-        cam = tf.reduce_sum(pooled_grads * conv_outputs, axis=-1).numpy()
-        cam = np.maximum(cam, 0)
-        if cam.max() > 0:
-            cam = (cam - cam.min()) / (cam.max() - cam.min() + 1e-8)
-            return cam
-
+    return cam
+    
         def overlay_gradcam(pil_img, cam):
             cam_r = cv2.resize(cam, (pil_img.width, pil_img.height))
             hmap  = np.uint8(plt.get_cmap('jet')(np.uint8(255*cam_r)/255.0)*255)[...,:3]
