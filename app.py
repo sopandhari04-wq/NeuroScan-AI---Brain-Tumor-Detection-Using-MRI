@@ -618,9 +618,32 @@ Welcome, **{st.session_state.user_name}**!
 
         @st.cache_resource
         def load_keras_model():
-            """Load the full Keras model for true Grad-CAM backpropagation."""
-            return tf.keras.models.load_model("models/model.keras")
- 
+            """Load Keras model with version-mismatch fix for BatchNormalization."""
+            import keras
+            from keras.layers import BatchNormalization
+
+            class CompatBatchNorm(BatchNormalization):
+                def __init__(self, **kwargs):
+                    # Strip out old kwargs that new Keras no longer accepts
+                    kwargs.pop("renorm", None)
+                    kwargs.pop("renorm_clipping", None)
+                    kwargs.pop("renorm_momentum", None)
+                    kwargs.pop("axis", None)  # sometimes causes issues too
+                    super().__init__(**kwargs)
+
+                @classmethod
+                def from_config(cls, config):
+                    config.pop("renorm", None)
+                    config.pop("renorm_clipping", None)
+                    config.pop("renorm_momentum", None)
+                    return super().from_config(config)
+
+            return tf.keras.models.load_model(
+                "models/model.keras",
+                custom_objects={"BatchNormalization": CompatBatchNorm},
+                compile=False  # skip optimizer reload, not needed for Grad-CAM
+            )
+
         def find_last_conv_layer(model):
             """Auto-detect the last Conv2D layer in the model."""
             for layer in reversed(model.layers):
