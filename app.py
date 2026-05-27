@@ -19,6 +19,9 @@ from supabase import create_client, Client
 
 st.set_page_config(page_title="NeuroScan AI", page_icon="🧠", layout="wide")
 
+# ADD THESE TWO LINES 👇
+st.markdown("<style>iframe[src*='neuroscan'] { pointer-events: auto; }</style>", unsafe_allow_html=True)
+
 # ══════════════════════════════════════════════════════════════════════════════
 #  SUPABASE CONNECTION
 # ══════════════════════════════════════════════════════════════════════════════
