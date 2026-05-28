@@ -41,7 +41,6 @@ export default function Dashboard() {
   useEffect(() => {
     async function fetchScans() {
       if (!user) return
-      // Try fetching with full email first, then fallback to prefix
       const { data: dataFull } = await supabase
         .from('scans')
         .select('*')
@@ -51,7 +50,6 @@ export default function Dashboard() {
       if (dataFull && dataFull.length > 0) {
         setScans(dataFull)
       } else {
-        // Fallback: try with email prefix
         const prefix = username.split('@')[0]
         const { data: dataPrefix } = await supabase
           .from('scans')
@@ -63,9 +61,9 @@ export default function Dashboard() {
       setLoading(false)
     }
     fetchScans()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, username])
-  
+    /* eslint-disable-next-line */
+  }, [])
+
   if (role === 'admin') return <Navigate to="/admin" replace />
 
   const total   = scans.length
