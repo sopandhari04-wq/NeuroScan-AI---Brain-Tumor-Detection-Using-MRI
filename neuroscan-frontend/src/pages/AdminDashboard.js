@@ -195,7 +195,10 @@ export default function AdminDashboard() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
             {scans.map((s) => {
               const c    = CLS_COLORS[s.prediction] || '#888'
-              const date = new Date(s.date).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })
+             const date = new Date(s.date + (s.date.endsWith('Z') ? '' : 'Z')).toLocaleString('en-IN', { 
+  month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', 
+  timeZone: 'Asia/Kolkata' 
+})
               const isToday = new Date(s.date).toDateString() === new Date().toDateString()
               return (
                 <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.7rem 1.1rem', borderRadius: '9px', background: isToday ? 'rgba(0,200,180,0.04)' : 'rgba(255,255,255,0.015)', border: isToday ? '1px solid rgba(0,200,180,0.15)' : '1px solid rgba(255,255,255,0.045)', fontFamily: 'var(--font-mono)', fontSize: '0.67rem' }}>
