@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../App'
+import { supabase } from '../lib/supabase'
 
 const API = 'https://neuroscan-ai-brain-tumor-detection-using.onrender.com'
 
@@ -8,6 +9,10 @@ const CLASS_COLORS = {
   meningioma: '#FFB347',
   notumor:    '#00C8B4',
   pituitary:  '#7B8CDE',
+}
+
+const CLS_LABEL = {
+  glioma: 'Glioma', meningioma: 'Meningioma', notumor: 'No Tumor', pituitary: 'Pituitary'
 }
 
 const GRADCAM_EXPLANATIONS = {
@@ -60,17 +65,24 @@ const labelStyle = {
   display: 'block',
 }
 
+async function fetchRecentScans(username, setRecentScans) {
+  if (!username) return
+  const { data } = await supabase
+    .from('scans')
+    .select('*')
+    .eq('username', username)
+    .order('date', { ascending: false })
+    .limit(5)
+  if (data) setRecentScans(data)
+}
+
 export default function Scanner() {
-  const { user } = useAuth()
-  const username = user?.email || 'anonymous'
-  const user_id = user?.id
+  const { user, username: authUsername } = useAuth()
+  const username = authUsername || user?.email || ''
   const user_name = user?.user_metadata?.full_name || user?.email || 'User'
-  console.log('Auth user:', user)
-  console.log('Username:', username)
 
   // Patient info
   const [patient, setPatient] = useState({ name: '', age: '', gender: 'Not specified' })
- 
 
   const [activeTab, setActiveTab]           = useState('single')
   const [loading, setLoading]               = useState(false)
@@ -81,6 +93,11 @@ export default function Scanner() {
   const [fusionFiles, setFusionFiles]       = useState({ t1: null, t1ce: null, t2: null, flair: null })
   const [fusionPreviews, setFusionPreviews] = useState({ t1: null, t1ce: null, t2: null, flair: null })
   const [pdfLoading, setPdfLoading]         = useState(false)
+  const [recentScans, setRecentScans]       = useState([])
+
+  useEffect(() => {
+    fetchRecentScans(username, setRecentScans)
+  }, [username])
 
   function handleSingleFile(e) {
     const file = e.target.files[0]
@@ -109,11 +126,11 @@ export default function Scanner() {
       const fd = new FormData()
       fd.append('file', singleFile)
       fd.append('username', username)
-      fd.append('user_id', user_id)
       fd.append('gradcam', 'true')
       const res  = await fetch(`${API}/api/predict`, { method: 'POST', body: fd })
       const data = await res.json()
       setResult({ ...data, mode: 'Single MRI' })
+      fetchRecentScans(username, setRecentScans)
     } catch {
       setError('Failed to connect to AI backend. Please try again.')
     } finally { setLoading(false) }
@@ -128,11 +145,11 @@ export default function Scanner() {
       fd.append('t1', t1); fd.append('t1ce', t1ce)
       fd.append('t2', t2); fd.append('flair', flair)
       fd.append('username', username)
-      fd.append('user_id', user_id)
       fd.append('gradcam', 'true')
       const res  = await fetch(`${API}/api/predict/fusion`, { method: 'POST', body: fd })
       const data = await res.json()
       setResult({ ...data, mode: 'Multi-Modal Fusion' })
+      fetchRecentScans(username, setRecentScans)
     } catch {
       setError('Failed to connect to AI backend. Please try again.')
     } finally { setLoading(false) }
@@ -143,12 +160,12 @@ export default function Scanner() {
     try {
       const fd = new FormData()
       const fileToSend = activeTab === 'single' ? singleFile : fusionFiles.t1
-      fd.append('file',         fileToSend)
-      fd.append('username',     username)
-      fd.append('name',         user_name)
-      fd.append('mode',         result.mode)
-      fd.append('patient_name', patient.name || 'Not provided')
-      fd.append('patient_age',  patient.age  || 'Not provided')
+      fd.append('file',           fileToSend)
+      fd.append('username',       username)
+      fd.append('name',           user_name)
+      fd.append('mode',           result.mode)
+      fd.append('patient_name',   patient.name   || 'Not provided')
+      fd.append('patient_age',    patient.age    || 'Not provided')
       fd.append('patient_gender', patient.gender || 'Not specified')
       const res  = await fetch(`${API}/api/report`, { method: 'POST', body: fd })
       const blob = await res.blob()
@@ -161,16 +178,16 @@ export default function Scanner() {
     finally { setPdfLoading(false) }
   }
 
-  const accent      = result ? CLASS_COLORS[result.prediction] : 'var(--teal)'
-  const gradcamExp  = result ? GRADCAM_EXPLANATIONS[result.prediction] : null
+  const accent     = result ? CLASS_COLORS[result.prediction] : 'var(--teal)'
+  const gradcamExp = result ? GRADCAM_EXPLANATIONS[result.prediction] : null
 
   const cardStyle = (mb = '1.5rem') => ({
     border: `1px solid ${accent}22`, borderRadius: '14px',
     background: `${accent}06`, padding: '1.5rem 1.8rem',
     position: 'relative', overflow: 'hidden', marginBottom: mb,
   })
-  const topLine   = { position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg,transparent,${accent},transparent)` }
-  const secTitle  = (text, emoji) => (
+  const topLine  = { position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg,transparent,${accent},transparent)` }
+  const secTitle = (text, emoji) => (
     <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-1)', marginBottom: '1rem' }}>
       {emoji} <span style={{ color: accent }}>{text}</span>
     </div>
@@ -204,7 +221,7 @@ export default function Scanner() {
           <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: 'var(--text-3)' }}>Upload an MRI scan to detect brain tumors instantly</div>
         </div>
 
-        {/* ── PATIENT INFO CARD ── */}
+        {/* Patient Info */}
         <div style={{ border: '1px solid rgba(0,200,180,0.2)', borderRadius: '14px', background: 'rgba(0,200,180,0.03)', padding: '1.5rem 1.8rem', marginBottom: '1.5rem', position: 'relative', overflow: 'hidden' }}>
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg,transparent,var(--teal),transparent)' }} />
           <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-1)', marginBottom: '1rem' }}>
@@ -300,7 +317,6 @@ export default function Scanner() {
         {result && !loading && (
           <div style={{ marginTop: '2rem' }}>
 
-            {/* Patient summary in result */}
             {patient.name && (
               <div style={{ padding: '0.8rem 1.2rem', borderRadius: '10px', background: 'rgba(0,200,180,0.05)', border: '1px solid rgba(0,200,180,0.15)', fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--text-2)', marginBottom: '1rem', display: 'flex', gap: '2rem' }}>
                 <span>🧑‍⚕️ <strong style={{ color: 'var(--teal)' }}>{patient.name}</strong></span>
@@ -451,6 +467,33 @@ export default function Scanner() {
             }
           </div>
         )}
+
+        {/* ── RECENT SCANS ── */}
+        {recentScans.length > 0 && (
+          <div style={{ marginTop: '3rem' }}>
+            <div style={{ height: 1, background: 'linear-gradient(90deg,transparent,rgba(12,242,200,0.12),transparent)', marginBottom: '1.5rem' }} />
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.58rem', letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '0.85rem' }}>
+              🕒 Recent Scans — Last 5
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              {recentScans.map((s) => {
+                const c    = CLASS_COLORS[s.prediction] || '#888'
+                const date = new Date(s.date).toLocaleString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                return (
+                  <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.7rem 1.1rem', borderRadius: '9px', background: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.045)', fontFamily: 'var(--font-mono)', fontSize: '0.67rem' }}>
+                    <div style={{ color: 'var(--text-3)', minWidth: 130 }}>{date}</div>
+                    <span style={{ background: c + '18', color: c, padding: '0.14rem 0.55rem', borderRadius: '99px', fontSize: '0.57rem', border: `1px solid ${c}44`, textTransform: 'uppercase' }}>
+                      {CLS_LABEL[s.prediction] || s.prediction}
+                    </span>
+                    <div style={{ color: 'var(--text-3)' }}>{Math.round(s.confidence * 100)}% conf.</div>
+                    <div style={{ color: 'var(--text-3)', marginLeft: 'auto' }}>{s.mode || 'Single MRI'}</div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
       </div>
 
       <div style={{ padding: '0.65rem 2rem', borderTop: '1px solid var(--border)', fontFamily: 'var(--font-mono)', fontSize: '0.58rem', color: 'var(--text-3)', textAlign: 'center', letterSpacing: '0.08em', flexShrink: 0 }}>
