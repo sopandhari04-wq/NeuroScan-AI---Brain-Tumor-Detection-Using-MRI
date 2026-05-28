@@ -39,7 +39,7 @@ const GRADCAM_EXPLANATIONS = {
 
 export default function Scanner() {
   const { user } = useAuth()
-  const username = user?.email || 'anonymous'
+  const username = user?.email || ''
   const user_name = user?.user_metadata?.full_name || user?.email || 'User'
 
   const [activeTab, setActiveTab]           = useState('single')
@@ -70,12 +70,14 @@ export default function Scanner() {
 
   async function runSinglePredict() {
     if (!singleFile) return
+    if (!user) { setError('Please log in to save scans.'); return }  // add this
     setLoading(true); setError(null); setResult(null)
     try {
       const fd = new FormData()
       fd.append('file', singleFile)
       fd.append('username', username)
       fd.append('gradcam', 'true')
+      fd.append('date', new Date().toISOString())  // add this
       const res  = await fetch(`${API}/api/predict`, { method: 'POST', body: fd })
       const data = await res.json()
       setResult({ ...data, mode: 'Single MRI' })
@@ -87,6 +89,7 @@ export default function Scanner() {
   async function runFusionPredict() {
     const { t1, t1ce, t2, flair } = fusionFiles
     if (!t1 || !t1ce || !t2 || !flair) return
+    if (!user) { setError('Please log in to save scans.'); return }  // add this
     setLoading(true); setError(null); setResult(null)
     try {
       const fd = new FormData()
@@ -94,6 +97,7 @@ export default function Scanner() {
       fd.append('t2', t2); fd.append('flair', flair)
       fd.append('username', username)
       fd.append('gradcam', 'true')
+      fd.append('date', new Date().toISOString())  // add this
       const res  = await fetch(`${API}/api/predict/fusion`, { method: 'POST', body: fd })
       const data = await res.json()
       setResult({ ...data, mode: 'Multi-Modal Fusion' })
