@@ -62,7 +62,8 @@ const labelStyle = {
 
 export default function Scanner() {
   const { user, username: authUsername } = useAuth()
-  const username = authUsername || user?.email || 'anonymous'
+  const username = user?.email || 'anonymous'
+  const user_id = user?.id
   const user_name = user?.user_metadata?.full_name || user?.email || 'User'
   console.log('Auth user:', user)
   console.log('Username:', username)
@@ -108,6 +109,7 @@ export default function Scanner() {
       const fd = new FormData()
       fd.append('file', singleFile)
       fd.append('username', username)
+      fd.append('user_id', user_id)
       fd.append('gradcam', 'true')
       const res  = await fetch(`${API}/api/predict`, { method: 'POST', body: fd })
       const data = await res.json()
@@ -126,6 +128,7 @@ export default function Scanner() {
       fd.append('t1', t1); fd.append('t1ce', t1ce)
       fd.append('t2', t2); fd.append('flair', flair)
       fd.append('username', username)
+      fd.append('user_id', user_id)
       fd.append('gradcam', 'true')
       const res  = await fetch(`${API}/api/predict/fusion`, { method: 'POST', body: fd })
       const data = await res.json()
