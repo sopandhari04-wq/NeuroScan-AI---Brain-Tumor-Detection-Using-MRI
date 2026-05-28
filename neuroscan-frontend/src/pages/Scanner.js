@@ -296,7 +296,7 @@ export default function Scanner() {
                 </label>
               ))}
             </div>
-            <button onClick={runFusionPredict} disabled={!Object.values(fusionFiles).every(Boolean) || loading || authLoading || !username} style={{ width: '100%', padding: '0.75rem', background: !Object.values(fusionFiles).every(Boolean) || loading || AuthLoading || !username ? 'rgba(0,200,180,0.1)' : 'linear-gradient(135deg,#00C8B4,#0097A7)', border: 'none', borderRadius: '10px', cursor: !Object.values(fusionFiles).every(Boolean) || loading || authLoading || !username ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-mono)', fontSize: '0.85rem', fontWeight: 700, color: !Object.values(fusionFiles).every(Boolean) || loading || authLoading || !username ? 'var(--text-3)' : '#000', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            <button onClick={runFusionPredict} disabled={!Object.values(fusionFiles).every(Boolean) || loading || authLoading || !username} style={{ width: '100%', padding: '0.75rem', background: !Object.values(fusionFiles).every(Boolean) || loading || authLoading || !username ? 'rgba(0,200,180,0.1)' : 'linear-gradient(135deg,#00C8B4,#0097A7)', border: 'none', borderRadius: '10px', cursor: !Object.values(fusionFiles).every(Boolean) || loading || authLoading || !username ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-mono)', fontSize: '0.85rem', fontWeight: 700, color: !Object.values(fusionFiles).every(Boolean) || loading || authLoading || !username ? 'var(--text-3)' : '#000', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
               {loading ? 'Analysing…' : '🧬 Run Fusion Analysis'}
             </button>
           </div>
