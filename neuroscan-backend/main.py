@@ -219,6 +219,7 @@ def preprocess(pil_img: Image.Image) -> np.ndarray:
 def add_scan_record(username, predicted_cls, confidence, mode):
     try:
         sb = get_supabase()
+        ist = timezone(timedelta(hours=5, minutes=30))
         sb.table("scans").insert({
             "username":   username if username else "not_logged_in",
             "prediction": predicted_cls,
