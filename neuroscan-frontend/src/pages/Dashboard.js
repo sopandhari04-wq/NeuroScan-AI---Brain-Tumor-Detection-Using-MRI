@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../App'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
+import { Navigate } from 'react-router-dom'
 
 const CLS_COLORS = { glioma: '#FF5757', meningioma: '#FFAD3B', notumor: '#0CF2C8', pituitary: '#7B82F5' }
 const CLS_LABEL  = { glioma: 'Glioma', meningioma: 'Meningioma', notumor: 'No Tumor', pituitary: 'Pituitary' }
@@ -29,6 +30,8 @@ function CustomTooltip({ active, payload }) {
 
 export default function Dashboard() {
   const { user } = useAuth()
+  const { role } = useAuth()
+if (role === 'admin') return <Navigate to="/admin" replace />
   const [scans, setScans]     = useState([])
   const [loading, setLoading] = useState(true)
 
