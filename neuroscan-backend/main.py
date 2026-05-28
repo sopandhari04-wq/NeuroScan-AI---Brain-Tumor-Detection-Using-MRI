@@ -6,8 +6,9 @@ from PIL import Image
 from datetime import datetime, timezone, timedelta
 from io import BytesIO
 import matplotlib.pyplot as plt
+import httpx
 
-from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
+from fastapi import FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -22,9 +23,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 
 from supabase import create_client, Client
-from fastapi import Request
 import jwt
-
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  APP INIT
@@ -33,7 +32,7 @@ app = FastAPI(title="NeuroScan AI API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Update to your React URL in production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -228,6 +227,7 @@ def add_scan_record(username, predicted_cls, confidence, mode):
             "confidence": round(float(confidence), 2),
             "mode":       mode
         }).execute()
+        print(f"Scan saved: {username} - {predicted_cls}")
     except Exception as e:
         print(f"Could not save scan: {e}")
 
@@ -253,6 +253,19 @@ def get_user_scans(username):
     except:
         return []
 
+def extract_username(request: Request, username: str) -> str:
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        try:
+            token   = auth_header.split(" ")[1]
+            payload = jwt.decode(token, options={"verify_signature": False})
+            email   = payload.get("email", "")
+            if email:
+                return email
+        except:
+            pass
+    return username if username else "unknown"
+
 def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_history, cam_analysis=None, patient_name=None, patient_age=None, patient_gender=None):
     buffer  = BytesIO()
     doc     = SimpleDocTemplate(buffer, pagesize=letter, topMargin=40, bottomMargin=40, leftMargin=50, rightMargin=50)
@@ -267,7 +280,6 @@ def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_hist
     ist     = timezone(timedelta(hours=5, minutes=30))
     now_ist = datetime.now(ist).strftime("%Y-%m-%d %H:%M IST")
     elems  += [Paragraph("NeuroScan AI", title_s), Paragraph("MRI Brain Tumor Analysis Report", sub_s), Spacer(1, 16)]
-    # Build info table with patient details
     info_rows = [
         ["Requesting Physician", user_name],
         ["Username", f"@{username}"],
@@ -360,10 +372,18 @@ class AddUserRequest(BaseModel):
     name: str
     role: str = "user"
 
+class LLMReportRequest(BaseModel):
+    prediction:     str
+    confidence:     float
+    gradcam:        dict
+    patient_name:   str = "Not provided"
+    patient_age:    str = "Not provided"
+    patient_gender: str = "Not specified"
+    mode:           str = "Single MRI"
+
 # ══════════════════════════════════════════════════════════════════════════════
 #  ROUTES
 # ══════════════════════════════════════════════════════════════════════════════
-
 @app.get("/")
 def root():
     return {"status": "NeuroScan AI API running", "version": "1.0.0"}
@@ -380,12 +400,7 @@ def login(req: LoginRequest):
         res = sb.table("users").select("*").eq("username", req.username.strip()).execute()
         if res.data and res.data[0]["password"] == req.password.strip():
             u = res.data[0]
-            return {
-                "success":   True,
-                "username":  u["username"],
-                "name":      u["name"],
-                "role":      u["role"],
-            }
+            return {"success": True, "username": u["username"], "name": u["name"], "role": u["role"]}
         return {"success": False, "message": "Invalid credentials"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -396,11 +411,9 @@ def add_user(req: AddUserRequest):
     try:
         sb = get_supabase()
         sb.table("users").insert({
-            "username": req.username,
-            "password": req.password,
-            "name":     req.name,
-            "role":     req.role,
-            "created":  datetime.now().strftime("%Y-%m-%d")
+            "username": req.username, "password": req.password,
+            "name": req.name, "role": req.role,
+            "created": datetime.now().strftime("%Y-%m-%d")
         }).execute()
         return {"success": True}
     except Exception as e:
@@ -434,12 +447,10 @@ def all_scans():
             except:
                 date_str = s["date"][:16]
             records.append({
-                "date":       date_str,
-                "prediction": s["prediction"],
-                "confidence": s["confidence"],
-                "mode":       s["mode"],
-                "username":   s["username"],
-                "user":       s["users"]["name"] if s.get("users") else s["username"]
+                "date": date_str, "prediction": s["prediction"],
+                "confidence": s["confidence"], "mode": s["mode"],
+                "username": s["username"],
+                "user": s["users"]["name"] if s.get("users") else s["username"]
             })
         return {"scans": records}
     except Exception as e:
@@ -448,19 +459,14 @@ def all_scans():
 @app.get("/api/stats")
 def stats():
     try:
-        sb         = get_supabase()
-        users_res  = sb.table("users").select("username, role").execute()
-        scans_res  = sb.table("scans").select("prediction").execute()
+        sb        = get_supabase()
+        users_res = sb.table("users").select("username, role").execute()
+        scans_res = sb.table("scans").select("prediction").execute()
         total_users  = len([u for u in users_res.data if u["role"] == "user"])
         total_scans  = len(scans_res.data)
         tumor_scans  = len([s for s in scans_res.data if s["prediction"] != "notumor"])
         normal_scans = total_scans - tumor_scans
-        return {
-            "total_users":  total_users,
-            "total_scans":  total_scans,
-            "tumor_scans":  tumor_scans,
-            "normal_scans": normal_scans,
-        }
+        return {"total_users": total_users, "total_scans": total_scans, "tumor_scans": tumor_scans, "normal_scans": normal_scans}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -472,22 +478,7 @@ async def predict_single(
     username: str = "",
     gradcam:  bool = True,
 ):
-    # Extract email from JWT token
-    auth_header = request.headers.get("Authorization", "")
-    if auth_header.startswith("Bearer "):
-        try:
-            import jwt
-            token   = auth_header.split(" ")[1]
-            payload = jwt.decode(token, options={"verify_signature": False})
-            email   = payload.get("email", "")
-            if email:
-                username = email
-        except:
-            pass
-
-    if not username:
-        username = "unknown"
-
+    username = extract_username(request, username)
     print(f"Predict called with username: {username}")
 
     contents = await file.read()
@@ -500,50 +491,36 @@ async def predict_single(
     predicted_cls = CLASS_NAMES[predicted_idx]
     confidence    = float(probs[predicted_idx])
 
-
-
-if confidence < 0.60:
-    return {
-        "prediction":    "invalid",
-        "display_name":  "Invalid Input",
-        "confidence":    confidence,
-        "color":         "#888888",
-        "probabilities": {CLASS_NAMES[i]: float(probs[i]) for i in range(len(CLASS_NAMES))},
-        "tumor_info":    None,
-        "gradcam":       None,
-        "overlay_image": None,
-        "error":         "This image does not appear to be a valid MRI scan. Please upload a proper brain MRI."
-    }
+    if confidence < 0.60:
+        return {
+            "prediction": "invalid", "display_name": "Invalid Input",
+            "confidence": confidence, "color": "#888888",
+            "probabilities": {CLASS_NAMES[i]: float(probs[i]) for i in range(len(CLASS_NAMES))},
+            "tumor_info": None, "gradcam": None, "overlay_image": None,
+            "error": "This image does not appear to be a valid MRI scan. Please upload a proper brain MRI."
+        }
 
     add_scan_record(username, predicted_cls, confidence, "Single MRI")
 
-    cam_data    = None
-    overlay_b64 = None
-
+    cam_data = None; overlay_b64 = None
     if gradcam:
         try:
             feat_model  = get_feat_model()
             cam         = compute_gradcam(feat_model, arr)
             cam_data    = analyze_gradcam(cam, predicted_cls, confidence)
             overlay_img = overlay_gradcam(pil_img, cam)
-            buf = BytesIO()
-            overlay_img.save(buf, format="PNG")
+            buf = BytesIO(); overlay_img.save(buf, format="PNG")
             import base64
             overlay_b64 = base64.b64encode(buf.getvalue()).decode()
         except Exception as e:
             print(f"Grad-CAM error: {e}")
 
     return {
-        "prediction":    predicted_cls,
-        "display_name":  CLASS_DISPLAY[predicted_cls],
-        "confidence":    confidence,
-        "color":         CLASS_COLORS[predicted_cls],
+        "prediction": predicted_cls, "display_name": CLASS_DISPLAY[predicted_cls],
+        "confidence": confidence, "color": CLASS_COLORS[predicted_cls],
         "probabilities": {CLASS_NAMES[i]: float(probs[i]) for i in range(len(CLASS_NAMES))},
-        "tumor_info":    TUMOR_DB[predicted_cls],
-        "gradcam":       cam_data,
-        "overlay_image": overlay_b64,
+        "tumor_info": TUMOR_DB[predicted_cls], "gradcam": cam_data, "overlay_image": overlay_b64,
     }
-
 
 @app.post("/api/predict/fusion")
 async def predict_fusion(
@@ -552,26 +529,10 @@ async def predict_fusion(
     t1ce:     UploadFile = File(...),
     t2:       UploadFile = File(...),
     flair:    UploadFile = File(...),
-    
     username: str = "",
     gradcam:  bool = True,
-):  
-     # Extract email from JWT token
-    auth_header = request.headers.get("Authorization", "")
-    if auth_header.startswith("Bearer "):
-        try:
-            import jwt
-            token   = auth_header.split(" ")[1]
-            payload = jwt.decode(token, options={"verify_signature": False})
-            email   = payload.get("email", "")
-            if email:
-                username = email
-        except:
-            pass
-
-    if not username:
-        username = "unknown"
-
+):
+    username = extract_username(request, username)
     print(f"Fusion predict called with username: {username}")
 
     imgs = []
@@ -595,46 +556,35 @@ async def predict_fusion(
     predicted_cls = CLASS_NAMES[predicted_idx]
     confidence    = float(probs[predicted_idx])
 
-if confidence < 0.60:
-    return {
-        "prediction":    "invalid",
-        "display_name":  "Invalid Input",
-        "confidence":    confidence,
-        "color":         "#888888",
-        "probabilities": {CLASS_NAMES[i]: float(probs[i]) for i in range(len(CLASS_NAMES))},
-        "tumor_info":    None,
-        "gradcam":       None,
-        "overlay_image": None,
-        "error":         "This image does not appear to be a valid MRI scan. Please upload a proper brain MRI."
-    }
+    if confidence < 0.60:
+        return {
+            "prediction": "invalid", "display_name": "Invalid Input",
+            "confidence": confidence, "color": "#888888",
+            "probabilities": {CLASS_NAMES[i]: float(probs[i]) for i in range(len(CLASS_NAMES))},
+            "tumor_info": None, "gradcam": None, "overlay_image": None,
+            "error": "This image does not appear to be a valid MRI scan."
+        }
 
     add_scan_record(username, predicted_cls, confidence, "Multi-Modal Fusion")
 
-    cam_data    = None
-    overlay_b64 = None
-
+    cam_data = None; overlay_b64 = None
     if gradcam:
         try:
             feat_model  = get_feat_model()
             cam         = compute_gradcam(feat_model, fused_input)
             cam_data    = analyze_gradcam(cam, predicted_cls, confidence)
             overlay_img = overlay_gradcam(fused_pil, cam)
-            buf = BytesIO()
-            overlay_img.save(buf, format="PNG")
+            buf = BytesIO(); overlay_img.save(buf, format="PNG")
             import base64
             overlay_b64 = base64.b64encode(buf.getvalue()).decode()
         except Exception as e:
             print(f"Grad-CAM error: {e}")
 
     return {
-        "prediction":    predicted_cls,
-        "display_name":  CLASS_DISPLAY[predicted_cls],
-        "confidence":    confidence,
-        "color":         CLASS_COLORS[predicted_cls],
+        "prediction": predicted_cls, "display_name": CLASS_DISPLAY[predicted_cls],
+        "confidence": confidence, "color": CLASS_COLORS[predicted_cls],
         "probabilities": {CLASS_NAMES[i]: float(probs[i]) for i in range(len(CLASS_NAMES))},
-        "tumor_info":    TUMOR_DB[predicted_cls],
-        "gradcam":       cam_data,
-        "overlay_image": overlay_b64,
+        "tumor_info": TUMOR_DB[predicted_cls], "gradcam": cam_data, "overlay_image": overlay_b64,
     }
 
 # ── PDF Report ─────────────────────────────────────────────────────────────────
@@ -680,3 +630,73 @@ async def download_report(
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename=NeuroScan_Report.pdf"}
     )
+
+# ── LLM Radiology Report (Groq) ────────────────────────────────────────────────
+@app.post("/api/llm-report")
+async def generate_llm_report(req: LLMReportRequest):
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="Groq API key not set")
+
+    info = TUMOR_DB.get(req.prediction, {})
+
+    prompt = f"""You are an expert neuroradiologist writing a formal AI-assisted MRI radiology report.
+Write a detailed, professional radiology report based on the following AI analysis results.
+
+PATIENT INFORMATION:
+- Name: {req.patient_name}
+- Age: {req.patient_age}
+- Gender: {req.patient_gender}
+- Analysis Mode: {req.mode}
+
+AI CLASSIFICATION RESULTS:
+- Primary Diagnosis: {info.get('full_name', req.prediction)}
+- Model Confidence: {round(req.confidence * 100, 1)}%
+- Urgency: {info.get('urgency', 'Unknown')}
+
+GRAD-CAM XAI ANALYSIS:
+- Activation Intensity: {req.gradcam.get('activation_intensity', 0)}%
+- Primary Focus Region: {req.gradcam.get('region', 'Unknown')}
+- Heatmap Coverage: {req.gradcam.get('focus_area_pct', 0)}%
+- Attention Pattern: {req.gradcam.get('pattern', 'Unknown')}
+- AI Confidence Level: {req.gradcam.get('conf_interp', 'Unknown')}
+
+CLINICAL CONTEXT:
+- Description: {info.get('description', '')}
+- Imaging Characteristics: {info.get('characteristics', '')}
+- Clinical Note: {info.get('clinical_note', '')}
+
+Write a formal radiology report with these exact sections:
+1. CLINICAL INDICATION
+2. TECHNIQUE
+3. FINDINGS
+4. IMPRESSION
+5. RECOMMENDATIONS
+
+Use professional medical language. Be specific about the AI findings, Grad-CAM activation regions, and clinical implications.
+Include a disclaimer at the end that this is AI-assisted analysis and must be verified by a qualified radiologist.
+Keep it concise but comprehensive — like a real hospital radiology report."""
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "llama-3.3-70b-versatile",
+                    "max_tokens": 1500,
+                    "temperature": 0.3,
+                    "messages": [
+                        {"role": "system", "content": "You are an expert neuroradiologist. Write formal, precise, professional medical radiology reports."},
+                        {"role": "user", "content": prompt}
+                    ]
+                }
+            )
+        data = response.json()
+        report_text = data["choices"][0]["message"]["content"]
+        return {"report": report_text, "status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"LLM generation failed: {str(e)}")
