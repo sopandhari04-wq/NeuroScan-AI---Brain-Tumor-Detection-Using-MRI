@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useAuth } from '../App'
-import { Navigate } from 'react-router-dom'
 
 const API = 'https://neuroscan-ai-brain-tumor-detection-using.onrender.com'
 
@@ -26,7 +25,7 @@ const GRADCAM_EXPLANATIONS = {
   },
   pituitary: {
     red: "Red/yellow zones identify the sellar/suprasellar mass. The AI detected signal abnormality in the pituitary region, consistent with adenoma expansion beyond the normal pituitary gland boundaries.",
-    blue: "Blue/green zones show surrounding structures. Critical anatomy near the pituitary includes the optic chiasm (superiorly), cavernous sinuses (laterally), and sphenoid sinus (inferiorly) — displacement of these structures affects clinical presentation.",
+    blue: "Blue/green zones show surrounding structures. Critical anatomy near the pituitary includes the optic chiasm (superiorly), cavernous sinuses (laterally), and sphenoid sinus (inferiorly).",
     pattern: (a) => `The ${a.pattern.toLowerCase()} activation pattern indicates a ${a.focus_area_pct < 15 ? 'microadenoma (<10mm) — confined to the sella turcica' : 'macroadenoma (≥10mm) — extending beyond the sella, possibly compressing the optic chiasm'}.`,
     region: (a) => `Central ${a.region} localization is consistent with pituitary adenoma. Suprasellar extension may cause visual field defects (bitemporal hemianopia) by compressing the optic chiasm.`,
   },
@@ -38,9 +37,37 @@ const GRADCAM_EXPLANATIONS = {
   },
 }
 
+const inputStyle = {
+  width: '100%',
+  background: 'rgba(0,200,180,0.04)',
+  border: '1px solid rgba(0,200,180,0.2)',
+  borderRadius: '8px',
+  color: 'var(--text-1)',
+  fontFamily: 'var(--font-mono)',
+  fontSize: '0.78rem',
+  padding: '0.55rem 0.9rem',
+  outline: 'none',
+  boxSizing: 'border-box',
+}
+
+const labelStyle = {
+  fontFamily: 'var(--font-mono)',
+  fontSize: '0.6rem',
+  color: 'var(--text-3)',
+  letterSpacing: '0.15em',
+  textTransform: 'uppercase',
+  marginBottom: '0.3rem',
+  display: 'block',
+}
+
 export default function Scanner() {
-  const { user, username } = useAuth()
-  const user_name = user?.user_metadata?.full_name || user?.email || ''
+  const { user } = useAuth()
+  const username  = user?.email || 'anonymous'
+  const user_name = user?.user_metadata?.full_name || user?.email || 'User'
+
+  // Patient info
+  const [patient, setPatient] = useState({ name: '', age: '', gender: 'Not specified' })
+  const [patientSaved, setPatientSaved] = useState(false)
 
   const [activeTab, setActiveTab]           = useState('single')
   const [loading, setLoading]               = useState(false)
@@ -51,9 +78,6 @@ export default function Scanner() {
   const [fusionFiles, setFusionFiles]       = useState({ t1: null, t1ce: null, t2: null, flair: null })
   const [fusionPreviews, setFusionPreviews] = useState({ t1: null, t1ce: null, t2: null, flair: null })
   const [pdfLoading, setPdfLoading]         = useState(false)
-
-  if (!user) return <Navigate to="/login" replace />
-
 
   function handleSingleFile(e) {
     const file = e.target.files[0]
@@ -71,17 +95,18 @@ export default function Scanner() {
     setResult(null); setError(null)
   }
 
+  function handlePatient(e) {
+    setPatient(prev => ({ ...prev, [e.target.name]: e.target.value }))
+  }
+
   async function runSinglePredict() {
     if (!singleFile) return
-    console.log('USERNAME BEING SENT:', username, 'USER:', user?.email)
-    if (!user?.email) { setError('Please log in to save scans.'); return }  // add this
     setLoading(true); setError(null); setResult(null)
     try {
       const fd = new FormData()
       fd.append('file', singleFile)
       fd.append('username', username)
       fd.append('gradcam', 'true')
-      fd.append('date', new Date().toISOString())  // add this
       const res  = await fetch(`${API}/api/predict`, { method: 'POST', body: fd })
       const data = await res.json()
       setResult({ ...data, mode: 'Single MRI' })
@@ -93,8 +118,6 @@ export default function Scanner() {
   async function runFusionPredict() {
     const { t1, t1ce, t2, flair } = fusionFiles
     if (!t1 || !t1ce || !t2 || !flair) return
-    console.log('USERNAME BEING SENT:', username, 'USER:', user?.email)
-    if (!user?.email) { setError('Please log in to save scans.'); return }  // add this
     setLoading(true); setError(null); setResult(null)
     try {
       const fd = new FormData()
@@ -102,7 +125,6 @@ export default function Scanner() {
       fd.append('t2', t2); fd.append('flair', flair)
       fd.append('username', username)
       fd.append('gradcam', 'true')
-      fd.append('date', new Date().toISOString())  // add this
       const res  = await fetch(`${API}/api/predict/fusion`, { method: 'POST', body: fd })
       const data = await res.json()
       setResult({ ...data, mode: 'Multi-Modal Fusion' })
@@ -116,30 +138,34 @@ export default function Scanner() {
     try {
       const fd = new FormData()
       const fileToSend = activeTab === 'single' ? singleFile : fusionFiles.t1
-      fd.append('file', fileToSend)
-      fd.append('username', username)
-      fd.append('name', user_name)
-      fd.append('mode', result.mode)
+      fd.append('file',         fileToSend)
+      fd.append('username',     username)
+      fd.append('name',         user_name)
+      fd.append('mode',         result.mode)
+      fd.append('patient_name', patient.name || 'Not provided')
+      fd.append('patient_age',  patient.age  || 'Not provided')
+      fd.append('patient_gender', patient.gender || 'Not specified')
       const res  = await fetch(`${API}/api/report`, { method: 'POST', body: fd })
       const blob = await res.blob()
       const url  = URL.createObjectURL(blob)
       const a    = document.createElement('a')
-      a.href = url; a.download = `NeuroScan_${result.mode.replace(' ','_')}_Report.pdf`
+      a.href = url
+      a.download = `NeuroScan_${result.mode.replace(' ','_')}_Report.pdf`
       a.click(); URL.revokeObjectURL(url)
     } catch { setError('Failed to generate PDF.') }
     finally { setPdfLoading(false) }
   }
 
-  const accent = result ? CLASS_COLORS[result.prediction] : 'var(--teal)'
-  const gradcamExp = result ? GRADCAM_EXPLANATIONS[result.prediction] : null
+  const accent      = result ? CLASS_COLORS[result.prediction] : 'var(--teal)'
+  const gradcamExp  = result ? GRADCAM_EXPLANATIONS[result.prediction] : null
 
-  const card = (children, mb = '1.5rem') => ({
+  const cardStyle = (mb = '1.5rem') => ({
     border: `1px solid ${accent}22`, borderRadius: '14px',
     background: `${accent}06`, padding: '1.5rem 1.8rem',
     position: 'relative', overflow: 'hidden', marginBottom: mb,
   })
-  const topLine = { position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg,transparent,${accent},transparent)` }
-  const sectionTitle = (text, emoji) => (
+  const topLine   = { position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg,transparent,${accent},transparent)` }
+  const secTitle  = (text, emoji) => (
     <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-1)', marginBottom: '1rem' }}>
       {emoji} <span style={{ color: accent }}>{text}</span>
     </div>
@@ -171,6 +197,39 @@ export default function Scanner() {
             Neuro<span style={{ color: 'var(--teal)' }}>Scan</span> AI
           </div>
           <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: 'var(--text-3)' }}>Upload an MRI scan to detect brain tumors instantly</div>
+        </div>
+
+        {/* ── PATIENT INFO CARD ── */}
+        <div style={{ border: '1px solid rgba(0,200,180,0.2)', borderRadius: '14px', background: 'rgba(0,200,180,0.03)', padding: '1.5rem 1.8rem', marginBottom: '1.5rem', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg,transparent,var(--teal),transparent)' }} />
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-1)', marginBottom: '1rem' }}>
+            🧑‍⚕️ <span style={{ color: 'var(--teal)' }}>Patient Information</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.58rem', color: 'var(--text-3)', marginLeft: '0.75rem', fontWeight: 400 }}>Optional — appears in PDF report</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+            <div>
+              <label style={labelStyle}>Patient Name</label>
+              <input style={inputStyle} name="name" value={patient.name} onChange={handlePatient} placeholder="e.g. John Doe" />
+            </div>
+            <div>
+              <label style={labelStyle}>Age</label>
+              <input style={inputStyle} name="age" type="number" value={patient.age} onChange={handlePatient} placeholder="e.g. 45" min="1" max="120" />
+            </div>
+            <div>
+              <label style={labelStyle}>Gender</label>
+              <select style={{ ...inputStyle, cursor: 'pointer' }} name="gender" value={patient.gender} onChange={handlePatient}>
+                <option>Not specified</option>
+                <option>Male</option>
+                <option>Female</option>
+                <option>Other</option>
+              </select>
+            </div>
+          </div>
+          {patient.name && (
+            <div style={{ marginTop: '0.8rem', fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--teal)' }}>
+              ✓ Patient: {patient.name} · Age: {patient.age || 'N/A'} · Gender: {patient.gender}
+            </div>
+          )}
         </div>
 
         {/* Tabs */}
@@ -236,9 +295,18 @@ export default function Scanner() {
         {result && !loading && (
           <div style={{ marginTop: '2rem' }}>
 
+            {/* Patient summary in result */}
+            {patient.name && (
+              <div style={{ padding: '0.8rem 1.2rem', borderRadius: '10px', background: 'rgba(0,200,180,0.05)', border: '1px solid rgba(0,200,180,0.15)', fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--text-2)', marginBottom: '1rem', display: 'flex', gap: '2rem' }}>
+                <span>🧑‍⚕️ <strong style={{ color: 'var(--teal)' }}>{patient.name}</strong></span>
+                {patient.age && <span>Age: <strong style={{ color: 'var(--text-1)' }}>{patient.age}</strong></span>}
+                <span>Gender: <strong style={{ color: 'var(--text-1)' }}>{patient.gender}</strong></span>
+              </div>
+            )}
+
             {/* Result card */}
-            <div style={{ ...card('1.5rem'), border: `1px solid ${accent}33` }}>
-              <div style={topLine} />
+            <div style={{ border: `1px solid ${accent}33`, borderRadius: '16px', background: `${accent}08`, padding: '1.8rem 2rem', position: 'relative', overflow: 'hidden', marginBottom: '1.5rem' }}>
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg,transparent,${accent},transparent)` }} />
               <div style={{ fontSize: '0.6rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: accent, marginBottom: '0.5rem' }}>Classification Result · {result.mode}</div>
               <div style={{ fontFamily: 'var(--font-display)', fontSize: '2.2rem', fontWeight: 800, color: accent, marginBottom: '1rem' }}>{result.display_name}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
@@ -281,28 +349,19 @@ export default function Scanner() {
               </div>
             )}
 
-            {/* Grad-CAM XAI Detailed Analysis */}
+            {/* Grad-CAM XAI */}
             {result.gradcam && gradcamExp && (
-              <div style={card()}>
+              <div style={cardStyle()}>
                 <div style={topLine} />
-                {sectionTitle('Grad-CAM XAI Analysis', '🔥')}
-
-                {/* Metrics grid */}
+                {secTitle('Grad-CAM XAI Analysis', '🔥')}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '0.8rem', marginBottom: '1.5rem' }}>
-                  {[
-                    ['Activation Intensity', `${result.gradcam.activation_intensity}%`],
-                    ['Primary Region', result.gradcam.region],
-                    ['Heatmap Coverage', `${result.gradcam.focus_area_pct}%`],
-                    ['Attention Pattern', result.gradcam.pattern],
-                  ].map(([label, value]) => (
+                  {[['Activation Intensity',`${result.gradcam.activation_intensity}%`],['Primary Region',result.gradcam.region],['Heatmap Coverage',`${result.gradcam.focus_area_pct}%`],['Attention Pattern',result.gradcam.pattern]].map(([label, value]) => (
                     <div key={label} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '10px', padding: '0.8rem', textAlign: 'center' }}>
                       <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.9rem', fontWeight: 700, color: accent }}>{value}</div>
                       <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.55rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-3)', marginTop: '0.2rem' }}>{label}</div>
                     </div>
                   ))}
                 </div>
-
-                {/* Confidence bar */}
                 <div style={{ marginBottom: '1.2rem', padding: '0.8rem 1rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
                     <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>Model Confidence</span>
@@ -312,12 +371,10 @@ export default function Scanner() {
                     <div style={{ height: '100%', width: `${result.gradcam.conf_pct}%`, background: `linear-gradient(90deg,${accent}88,${accent})`, borderRadius: 99 }} />
                   </div>
                 </div>
-
-                {/* Detailed explanations */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                   {[
                     { dot: '#FF4444', title: 'Red/Yellow Regions — Primary AI Attention', text: gradcamExp.red },
-                    { dot: '#4488FF', title: 'Blue/Green Regions — Low Attention Zones', text: gradcamExp.blue },
+                    { dot: '#4488FF', title: 'Blue/Green Regions — Low Attention Zones',  text: gradcamExp.blue },
                     { dot: accent,    title: `Attention Pattern: ${result.gradcam.pattern}`, text: gradcamExp.pattern(result.gradcam) },
                     { dot: '#FFB347', title: 'Anatomical Region Analysis', text: gradcamExp.region(result.gradcam) },
                   ].map(({ dot, title, text }) => (
@@ -335,39 +392,31 @@ export default function Scanner() {
 
             {/* AI Radiology Report */}
             {result.tumor_info && (
-              <div style={card()}>
+              <div style={cardStyle()}>
                 <div style={topLine} />
-                {sectionTitle('AI Radiology Report', '📋')}
+                {secTitle('AI Radiology Report', '📋')}
                 <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', fontWeight: 800, color: accent, marginBottom: '0.4rem' }}>{result.tumor_info.full_name}</div>
                 <div style={{ display: 'inline-block', background: `${result.tumor_info.urgency_color}22`, color: result.tumor_info.urgency_color, fontSize: '0.62rem', letterSpacing: '0.15em', padding: '0.25rem 0.7rem', borderRadius: '99px', border: `1px solid ${result.tumor_info.urgency_color}55`, textTransform: 'uppercase', fontFamily: 'var(--font-mono)', marginBottom: '1.2rem' }}>
                   {result.tumor_info.urgency}
                 </div>
-                {[
-                  ['Clinical Description', result.tumor_info.description],
-                  ['Imaging Characteristics', result.tumor_info.characteristics],
-                  ['Clinical Note', result.tumor_info.clinical_note],
-                  ['Recommended Follow-up', result.tumor_info.followup],
-                  ['Prognosis', result.tumor_info.prognosis],
-                ].map(([label, value]) => (
+                {[['Clinical Description',result.tumor_info.description],['Imaging Characteristics',result.tumor_info.characteristics],['Clinical Note',result.tumor_info.clinical_note],['Recommended Follow-up',result.tumor_info.followup],['Prognosis',result.tumor_info.prognosis]].map(([label, value]) => (
                   <div key={label} style={{ marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                     <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.58rem', letterSpacing: '0.25em', textTransform: 'uppercase', color: accent, marginBottom: '0.35rem' }}>{label}</div>
                     <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.73rem', color: 'var(--text-2)', lineHeight: 1.8 }}>{value}</div>
                   </div>
                 ))}
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--text-3)', padding: '0.6rem 0.8rem', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                  ⚠ AI-generated report for research purposes only. Not a clinical diagnosis. Consult a qualified medical professional.
+                  ⚠ AI-generated report for research purposes only. Not a clinical diagnosis.
                 </div>
               </div>
             )}
 
-            {/* Treatment Recommendations */}
+            {/* Treatment */}
             {result.tumor_info?.treatments?.length > 0 && (
-              <div style={card()}>
+              <div style={cardStyle()}>
                 <div style={topLine} />
-                {sectionTitle('Treatment Recommendations', '💊')}
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-3)', marginBottom: '1.2rem' }}>
-                  Standard treatment approaches for {result.tumor_info.full_name} — for educational reference only
-                </div>
+                {secTitle('Treatment Recommendations', '💊')}
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-3)', marginBottom: '1.2rem' }}>Standard treatment approaches for {result.tumor_info.full_name} — for educational reference only</div>
                 {result.tumor_info.treatments.map(([title, desc], i) => {
                   const tc = ['#FF6B6B','#FFB347','#7B8CDE','#00C8B4','#FF8FAB'][i % 5]
                   return (
@@ -382,13 +431,10 @@ export default function Scanner() {
                     </div>
                   )
                 })}
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--text-3)', padding: '0.6rem 0.8rem', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)', marginTop: '0.5rem' }}>
-                  ⚠ Treatment decisions must be made by qualified medical professionals. This is for educational purposes only.
-                </div>
               </div>
             )}
 
-            {/* PDF Download — works for both single and fusion */}
+            {/* PDF Download */}
             <button onClick={downloadPDF} disabled={pdfLoading} style={{ width: '100%', padding: '0.75rem', background: 'rgba(0,200,180,0.08)', border: '1px solid rgba(0,200,180,0.3)', borderRadius: '10px', cursor: pdfLoading ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--teal)', letterSpacing: '0.08em', marginBottom: '1rem' }}>
               {pdfLoading ? 'Generating PDF…' : '📄 Download Full Clinical Report (PDF)'}
             </button>

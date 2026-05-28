@@ -219,17 +219,14 @@ def preprocess(pil_img: Image.Image) -> np.ndarray:
 def add_scan_record(username, predicted_cls, confidence, mode):
     try:
         sb = get_supabase()
-        ist = timezone(timedelta(hours=5, minutes=30))
         sb.table("scans").insert({
-            "username":   username if username else "not_logged_in",
+            "username":   username,
             "prediction": predicted_cls,
             "confidence": round(float(confidence), 2),
-            "mode":       mode,
-            "date":       datetime.now(timezone.utc).isoformat(),
+            "mode":       mode
         }).execute()
-        print(f"Scan saved: {username} - {predicted_cls}")
     except Exception as e:
-        print(f"Could not save scan record: {e}")
+        print(f"Could not save scan: {e}")
 
 def get_user_scans(username):
     try:
@@ -253,7 +250,7 @@ def get_user_scans(username):
     except:
         return []
 
-def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_history, cam_analysis=None):
+def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_history, cam_analysis=None, patient_name=None, patient_age=None, patient_gender=None):
     buffer  = BytesIO()
     doc     = SimpleDocTemplate(buffer, pagesize=letter, topMargin=40, bottomMargin=40, leftMargin=50, rightMargin=50)
     styles  = getSampleStyleSheet()
@@ -267,7 +264,17 @@ def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_hist
     ist     = timezone(timedelta(hours=5, minutes=30))
     now_ist = datetime.now(ist).strftime("%Y-%m-%d %H:%M IST")
     elems  += [Paragraph("NeuroScan AI", title_s), Paragraph("MRI Brain Tumor Analysis Report", sub_s), Spacer(1, 16)]
-    info_t  = Table([["Patient", user_name], ["Username", f"@{username}"], ["Mode", mode], ["Generated", now_ist]], colWidths=[140, 340])
+    # Build info table with patient details
+    info_rows = [
+        ["Requesting Physician", user_name],
+        ["Username", f"@{username}"],
+        ["Patient Name", patient_name or "Not provided"],
+        ["Patient Age", patient_age or "Not provided"],
+        ["Patient Gender", patient_gender or "Not specified"],
+        ["Analysis Mode", mode],
+        ["Generated On", now_ist],
+    ]
+    info_t  = Table(info_rows, colWidths=[140, 340])
     info_t.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (0,-1), colors.HexColor('#EEF9F7')),
         ('TEXTCOLOR',  (0,0), (0,-1), colors.HexColor('#007A6E')),
@@ -458,7 +465,7 @@ def stats():
 @app.post("/api/predict")
 async def predict_single(
     file:     UploadFile = File(...),
-    username: str = "",
+    username: str = "anonymous",
     gradcam:  bool = True,
 ):
     contents = await file.read()
@@ -506,7 +513,7 @@ async def predict_fusion(
     t1ce:     UploadFile = File(...),
     t2:       UploadFile = File(...),
     flair:    UploadFile = File(...),
-    username: str = "",
+    username: str = "anonymous",
     gradcam:  bool = True,
 ):
     imgs = []
@@ -562,10 +569,13 @@ async def predict_fusion(
 # ── PDF Report ─────────────────────────────────────────────────────────────────
 @app.post("/api/report")
 async def download_report(
-    file:     UploadFile = File(...),
-    username: str = "",
-    name:     str = "User",
-    mode:     str = "Single MRI",
+    file:           UploadFile = File(...),
+    username:       str = "anonymous",
+    name:           str = "User",
+    mode:           str = "Single MRI",
+    patient_name:   str = "Not provided",
+    patient_age:    str = "Not provided",
+    patient_gender: str = "Not specified",
 ):
     contents = await file.read()
     pil_img  = pil_from_upload(contents)
@@ -586,7 +596,13 @@ async def download_report(
         pass
 
     scan_history = get_user_scans(username)
-    pdf_buf      = generate_pdf(predicted_cls, confidence, mode, username, name, scan_history, cam_data)
+    pdf_buf      = generate_pdf(
+        predicted_cls, confidence, mode, username, name,
+        scan_history, cam_data,
+        patient_name=patient_name,
+        patient_age=patient_age,
+        patient_gender=patient_gender
+    )
 
     return StreamingResponse(
         pdf_buf,
