@@ -63,7 +63,7 @@ export default function Dashboard() {
       setLoading(false)
     }
     fetchScans()
- }, [user?.id, username])
+ }, [user?.id, username, user])
 
   if (role === 'admin') return <Navigate to="/admin" replace />
 
