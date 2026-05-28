@@ -77,7 +77,7 @@ async function fetchRecentScans(username, setRecentScans) {
 }
 
 export default function Scanner() {
-  const { user, username: authUsername, loading: authloading } = useAuth()
+  const { user, username: authUsername, loading: authLoading } = useAuth()
   const username = user?.email || authUsername  || ''
   const user_name = user?.user_metadata?.full_name || user?.email || 'User'
 
