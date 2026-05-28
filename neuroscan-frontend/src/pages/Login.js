@@ -4,17 +4,39 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../App'
 
 export default function Login() {
-  const [mode, setMode] = useState('signin')
-  const [email, setEmail] = useState('')
+  const [mode, setMode]         = useState('signin')
+  const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
-  const [name, setName] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
-  const navigate = useNavigate()
-  const { user } = useAuth()
+  const [name, setName]         = useState('')
+  const [loading, setLoading]   = useState(false)
+  const [error, setError]       = useState('')
+  const [success, setSuccess]   = useState('')
+  const navigate  = useNavigate()
+  const { user, role } = useAuth()
 
-  if (user) { navigate('/dashboard'); return null }
+  // Redirect if already logged in
+  if (user) {
+    if (role === 'admin')   { navigate('/admin');     return null }
+    if (role === 'doctor')  { navigate('/dashboard'); return null }
+    if (role === 'patient') { navigate('/patient');   return null }
+    navigate('/patient'); return null
+  }
+
+  async function getRoleAndRedirect(email) {
+    try {
+      const { data } = await supabase
+        .from('users')
+        .select('role')
+        .eq('username', email)
+        .single()
+      const r = data?.role || 'patient'
+      if (r === 'admin')   navigate('/admin')
+      else if (r === 'doctor') navigate('/dashboard')
+      else navigate('/patient')
+    } catch {
+      navigate('/patient')
+    }
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -23,14 +45,21 @@ export default function Login() {
       if (mode === 'signin') {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error
-        navigate('/dashboard')
+        await getRoleAndRedirect(email)
       } else if (mode === 'signup') {
         const { error } = await supabase.auth.signUp({
           email, password,
           options: { data: { full_name: name } }
         })
         if (error) throw error
-        setSuccess('Account created! Check your email to confirm, then sign in.')
+        // Insert into users table with default patient role
+        await supabase.from('users').insert({
+          username: email,
+          name:     name,
+          role:     'patient',
+          password: password,
+        })
+        setSuccess('Account created! You can now sign in.')
         setMode('signin')
       } else if (mode === 'reset') {
         const { error } = await supabase.auth.resetPasswordForEmail(email)
@@ -72,6 +101,18 @@ export default function Login() {
         <h1 style={{ fontSize: '2.2rem', letterSpacing: '-0.03em' }}>
           Neuro<span style={{ color: 'var(--teal)' }}>Scan</span> AI
         </h1>
+      </div>
+
+      {/* Role badges */}
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
+        {[['👨‍⚕️ Doctor', '#7B82F5'], ['🧑‍💼 Admin', '#FF6B6B'], ['🧑 Patient', '#00C8B4']].map(([label, color]) => (
+          <div key={label} style={{
+            fontFamily: 'var(--font-mono)', fontSize: '0.55rem',
+            letterSpacing: '0.12em', padding: '0.25rem 0.7rem',
+            borderRadius: '99px', border: `1px solid ${color}44`,
+            background: `${color}11`, color,
+          }}>{label}</div>
+        ))}
       </div>
 
       {/* Card */}
@@ -161,25 +202,29 @@ export default function Login() {
             </div>
           )}
 
-          {/* Error */}
+          {mode === 'signup' && (
+            <div style={{
+              padding: '0.6rem 0.9rem', borderRadius: '8px',
+              background: 'rgba(0,200,180,0.05)', border: '1px solid rgba(0,200,180,0.15)',
+              fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--text-3)'
+            }}>
+              ℹ New accounts are created as <span style={{ color: 'var(--teal)' }}>Patient</span> by default. Contact admin to change your role.
+            </div>
+          )}
+
           {error && (
             <div style={{
-              background: 'rgba(255,87,87,0.08)',
-              border: '1px solid rgba(255,87,87,0.25)',
+              background: 'rgba(255,87,87,0.08)', border: '1px solid rgba(255,87,87,0.25)',
               borderRadius: '8px', padding: '0.7rem 1rem',
-              fontFamily: 'var(--font-mono)', fontSize: '0.68rem',
-              color: 'var(--red)'
+              fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--red)'
             }}>{error}</div>
           )}
 
-          {/* Success */}
           {success && (
             <div style={{
-              background: 'rgba(12,242,200,0.06)',
-              border: '1px solid rgba(12,242,200,0.22)',
+              background: 'rgba(12,242,200,0.06)', border: '1px solid rgba(12,242,200,0.22)',
               borderRadius: '8px', padding: '0.7rem 1rem',
-              fontFamily: 'var(--font-mono)', fontSize: '0.68rem',
-              color: 'var(--teal)'
+              fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--teal)'
             }}>{success}</div>
           )}
 
@@ -193,7 +238,6 @@ export default function Login() {
           </button>
         </form>
 
-        {/* Forgot password link */}
         {mode === 'signin' && (
           <button onClick={() => { setMode('reset'); setError(''); setSuccess('') }} style={{
             background: 'none', border: 'none', color: 'var(--text-3)',

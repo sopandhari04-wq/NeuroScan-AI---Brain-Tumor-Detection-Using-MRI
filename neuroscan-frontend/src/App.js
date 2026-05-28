@@ -7,6 +7,7 @@ import About from './pages/About'
 import Features from './pages/Features'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
+import PatientDashboard from './pages/PatientDashboard'
 import AdminDashboard from './pages/AdminDashboard'
 import Scanner from './pages/Scanner'
 
@@ -37,10 +38,27 @@ function AdminRoute({ children }) {
   return children
 }
 
+function DoctorRoute({ children }) {
+  const { user, loading, role } = useAuth()
+  if (loading) return <LoadingScreen />
+  if (!user) return <Navigate to="/login" replace />
+  if (role !== 'doctor' && role !== 'admin') return <Navigate to="/patient" replace />
+  return children
+}
+
+function PatientRoute({ children }) {
+  const { user, loading, role } = useAuth()
+  if (loading) return <LoadingScreen />
+  if (!user) return <Navigate to="/login" replace />
+  if (role === 'admin') return <Navigate to="/admin" replace />
+  if (role === 'doctor') return <Navigate to="/dashboard" replace />
+  return children
+}
+
 export default function App() {
   const [user, setUser]         = useState(null)
   const [loading, setLoading]   = useState(true)
-  const [role, setRole]         = useState('user')
+  const [role, setRole]         = useState('patient')
   const [userName, setUserName] = useState('')
 
   useEffect(() => {
@@ -54,7 +72,7 @@ export default function App() {
       const u = session?.user ?? null
       setUser(u)
       if (u) fetchRole(u.email)
-      else { setRole('user'); setLoading(false) }
+      else { setRole('patient'); setLoading(false) }
     })
     return () => subscription.unsubscribe()
   }, [])
@@ -67,14 +85,14 @@ export default function App() {
         .eq('username', email)
         .single()
       if (data) {
-        setRole(data.role || 'user')
+        setRole(data.role || 'patient')
         setUserName(data.name || email)
       } else {
-        setRole('user')
+        setRole('patient')
         setUserName(email)
       }
     } catch {
-      setRole('user')
+      setRole('patient')
       setUserName(email)
     } finally {
       setLoading(false)
@@ -86,19 +104,29 @@ export default function App() {
       user,
       loading,
       role,
-      username:  user?.email || 'anonymous',
+      username:  user?.email || '',
       user_name: userName || user?.email || 'User',
     }}>
       <Navbar />
       <Routes>
-        <Route path="/"         element={<Home />} />
-        <Route path="/about"    element={<About />} />
-        <Route path="/features" element={<Features />} />
-        <Route path="/login"    element={<Login />} />
-        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-        <Route path="/admin"    element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-        <Route path="/scanner"  element={<ProtectedRoute><Scanner /></ProtectedRoute>} />
-        <Route path="*"         element={<Navigate to="/" replace />} />
+        <Route path="/"          element={<Home />} />
+        <Route path="/about"     element={<About />} />
+        <Route path="/features"  element={<Features />} />
+        <Route path="/login"     element={<Login />} />
+
+        {/* Doctor dashboard — full stats + charts */}
+        <Route path="/dashboard" element={<DoctorRoute><Dashboard /></DoctorRoute>} />
+
+        {/* Patient dashboard — scan history only */}
+        <Route path="/patient"   element={<PatientRoute><PatientDashboard /></PatientRoute>} />
+
+        {/* Admin dashboard */}
+        <Route path="/admin"     element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+
+        {/* Scanner — all roles */}
+        <Route path="/scanner"   element={<ProtectedRoute><Scanner /></ProtectedRoute>} />
+
+        <Route path="*"          element={<Navigate to="/" replace />} />
       </Routes>
     </AuthContext.Provider>
   )
