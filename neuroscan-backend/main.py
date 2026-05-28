@@ -22,6 +22,9 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 
 from supabase import create_client, Client
+from fastapi import Request
+import jwt
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  APP INIT
@@ -464,10 +467,29 @@ def stats():
 # ── Predict ────────────────────────────────────────────────────────────────────
 @app.post("/api/predict")
 async def predict_single(
+    request:  Request,
     file:     UploadFile = File(...),
-    username: str = "anonymous",
+    username: str = "",
     gradcam:  bool = True,
 ):
+    # Extract email from JWT token
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        try:
+            import jwt
+            token   = auth_header.split(" ")[1]
+            payload = jwt.decode(token, options={"verify_signature": False})
+            email   = payload.get("email", "")
+            if email:
+                username = email
+        except:
+            pass
+
+    if not username:
+        username = "unknown"
+
+    print(f"Predict called with username: {username}")
+
     contents = await file.read()
     pil_img  = pil_from_upload(contents)
     arr      = preprocess(pil_img)
@@ -480,8 +502,8 @@ async def predict_single(
 
     add_scan_record(username, predicted_cls, confidence, "Single MRI")
 
-    cam_data     = None
-    overlay_b64  = None
+    cam_data    = None
+    overlay_b64 = None
 
     if gradcam:
         try:
@@ -507,15 +529,36 @@ async def predict_single(
         "overlay_image": overlay_b64,
     }
 
+
 @app.post("/api/predict/fusion")
 async def predict_fusion(
+    request:  Request,
     t1:       UploadFile = File(...),
     t1ce:     UploadFile = File(...),
     t2:       UploadFile = File(...),
     flair:    UploadFile = File(...),
-    username: str = "anonymous",
+    
+    username: str = "",
     gradcam:  bool = True,
-):
+):  
+     # Extract email from JWT token
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        try:
+            import jwt
+            token   = auth_header.split(" ")[1]
+            payload = jwt.decode(token, options={"verify_signature": False})
+            email   = payload.get("email", "")
+            if email:
+                username = email
+        except:
+            pass
+
+    if not username:
+        username = "unknown"
+
+    print(f"Fusion predict called with username: {username}")
+
     imgs = []
     for f in [t1, t1ce, t2, flair]:
         contents = await f.read()
