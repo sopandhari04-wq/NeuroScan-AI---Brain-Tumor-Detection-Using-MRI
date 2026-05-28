@@ -73,6 +73,7 @@ export default function Scanner() {
 
   async function runSinglePredict() {
     if (!singleFile) return
+    console.log('USERNAME BEING SENT:', username, 'USER:', user?.email)
     if (!user?.email) { setError('Please log in to save scans.'); return }  // add this
     setLoading(true); setError(null); setResult(null)
     try {
@@ -92,6 +93,7 @@ export default function Scanner() {
   async function runFusionPredict() {
     const { t1, t1ce, t2, flair } = fusionFiles
     if (!t1 || !t1ce || !t2 || !flair) return
+    console.log('USERNAME BEING SENT:', username, 'USER:', user?.email)
     if (!user?.email) { setError('Please log in to save scans.'); return }  // add this
     setLoading(true); setError(null); setResult(null)
     try {
