@@ -59,7 +59,13 @@ export default function App() {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, loading, streamlitUrl: STREAMLIT_URL }}>
+   <AuthContext.Provider value={{ 
+  user, 
+  loading, 
+  streamlitUrl: STREAMLIT_URL,
+  username: user?.email || 'anonymous',
+  user_name: user?.user_metadata?.full_name || user?.email || 'User'
+}}>
       <Navbar />
       <Routes>
         <Route path="/" element={<Home />} />
