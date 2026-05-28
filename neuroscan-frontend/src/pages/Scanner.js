@@ -67,7 +67,7 @@ export default function Scanner() {
 
   // Patient info
   const [patient, setPatient] = useState({ name: '', age: '', gender: 'Not specified' })
-  const [patientSaved, setPatientSaved] = useState(false)
+ 
 
   const [activeTab, setActiveTab]           = useState('single')
   const [loading, setLoading]               = useState(false)
