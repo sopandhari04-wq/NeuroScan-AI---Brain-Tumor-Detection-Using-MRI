@@ -77,8 +77,8 @@ async function fetchRecentScans(username, setRecentScans) {
 }
 
 export default function Scanner() {
-  const { user, username: authUsername } = useAuth()
-  const username = authUsername || user?.email || ''
+  const { user, username: authUsername, loading: authloading } = useAuth()
+  const username = user?.email || authUsername  || ''
   const user_name = user?.user_metadata?.full_name || user?.email || 'User'
 
   // Patient info
@@ -96,7 +96,7 @@ export default function Scanner() {
   const [recentScans, setRecentScans]       = useState([])
 
   useEffect(() => {
-    fetchRecentScans(username, setRecentScans)
+   if (username) fetchRecentScans(username, setRecentScans)
   }, [username])
 
   function handleSingleFile(e) {
@@ -276,7 +276,7 @@ export default function Scanner() {
                 : <><div style={{ fontSize: '2.5rem', opacity: 0.3, marginBottom: '0.8rem' }}>🔬</div><div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)' }}>Click to upload JPG or PNG MRI scan</div></>
               }
             </label>
-            <button onClick={runSinglePredict} disabled={!singleFile || loading} style={{ width: '100%', padding: '0.75rem', background: !singleFile || loading ? 'rgba(0,200,180,0.1)' : 'linear-gradient(135deg,#00C8B4,#0097A7)', border: 'none', borderRadius: '10px', cursor: !singleFile || loading ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-mono)', fontSize: '0.85rem', fontWeight: 700, color: !singleFile || loading ? 'var(--text-3)' : '#000', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            <button onClick={runSinglePredict} disabled={!singleFile || loading || authLoading || !username} style={{ width: '100%', padding: '0.75rem', background: !singleFile || loading || authLoading || !username ? 'rgba(0,200,180,0.1)' : 'linear-gradient(135deg,#00C8B4,#0097A7)', border: 'none', borderRadius: '10px', cursor: !singleFile || loading  || authLoading || !username ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-mono)', fontSize: '0.85rem', fontWeight: 700, color: !singleFile || loading || authLoading || !username ? 'var(--text-3)' : '#000', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
               {loading ? 'Analysing…' : '🧠 Analyse MRI'}
             </button>
           </div>
@@ -296,7 +296,7 @@ export default function Scanner() {
                 </label>
               ))}
             </div>
-            <button onClick={runFusionPredict} disabled={!Object.values(fusionFiles).every(Boolean) || loading} style={{ width: '100%', padding: '0.75rem', background: !Object.values(fusionFiles).every(Boolean) || loading ? 'rgba(0,200,180,0.1)' : 'linear-gradient(135deg,#00C8B4,#0097A7)', border: 'none', borderRadius: '10px', cursor: !Object.values(fusionFiles).every(Boolean) || loading ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-mono)', fontSize: '0.85rem', fontWeight: 700, color: !Object.values(fusionFiles).every(Boolean) || loading ? 'var(--text-3)' : '#000', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            <button onClick={runFusionPredict} disabled={!Object.values(fusionFiles).every(Boolean) || loading || authLoading || !username} style={{ width: '100%', padding: '0.75rem', background: !Object.values(fusionFiles).every(Boolean) || loading || AuthLoading || !username ? 'rgba(0,200,180,0.1)' : 'linear-gradient(135deg,#00C8B4,#0097A7)', border: 'none', borderRadius: '10px', cursor: !Object.values(fusionFiles).every(Boolean) || loading || authLoading || !username ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-mono)', fontSize: '0.85rem', fontWeight: 700, color: !Object.values(fusionFiles).every(Boolean) || loading || authLoading || !username ? 'var(--text-3)' : '#000', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
               {loading ? 'Analysing…' : '🧬 Run Fusion Analysis'}
             </button>
           </div>
