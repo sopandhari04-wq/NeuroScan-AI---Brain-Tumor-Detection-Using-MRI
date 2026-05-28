@@ -64,6 +64,8 @@ export default function Scanner() {
   const { user, username: authUsername } = useAuth()
   const username = authUsername || user?.email || 'anonymous'
   const user_name = user?.user_metadata?.full_name || user?.email || 'User'
+  console.log('Auth user:', user)
+  console.log('Username:', username)
 
   // Patient info
   const [patient, setPatient] = useState({ name: '', age: '', gender: 'Not specified' })
