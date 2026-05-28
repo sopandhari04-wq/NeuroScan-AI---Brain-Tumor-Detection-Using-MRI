@@ -220,10 +220,11 @@ def add_scan_record(username, predicted_cls, confidence, mode):
     try:
         sb = get_supabase()
         sb.table("scans").insert({
-            "username":   username,
+            "username":   username if username else "unknown",
             "prediction": predicted_cls,
             "confidence": round(float(confidence), 2),
-            "mode":       mode
+            "mode":       mode,
+            "date":       datetime.now(timezone.utc).isoformat(),
         }).execute()
         print(f"Scan saved: {username} - {predicted_cls}")
     except Exception as e:
