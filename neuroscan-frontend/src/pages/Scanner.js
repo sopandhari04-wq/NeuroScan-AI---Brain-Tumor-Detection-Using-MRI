@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../App'
+import { Navigate } from 'react-router-dom'
 
 const API = 'https://neuroscan-ai-brain-tumor-detection-using.onrender.com'
 
@@ -40,7 +41,8 @@ const GRADCAM_EXPLANATIONS = {
 export default function Scanner() {
   const { user } = useAuth()
   const username = user?.email || ''
-  const user_name = user?.user_metadata?.full_name || user?.email || 'User'
+  const user_name = user?.user_metadata?.full_name || user?.email || ''
+   if (!user) return <Navigate to="/login" replace />
 
   const [activeTab, setActiveTab]           = useState('single')
   const [loading, setLoading]               = useState(false)

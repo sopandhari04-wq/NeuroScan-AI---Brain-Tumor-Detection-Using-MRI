@@ -220,7 +220,7 @@ def add_scan_record(username, predicted_cls, confidence, mode):
     try:
         sb = get_supabase()
         sb.table("scans").insert({
-            "username":   username if username else "unknown",
+            "username":   username if username else "not_logged_in",
             "prediction": predicted_cls,
             "confidence": round(float(confidence), 2),
             "mode":       mode,
@@ -457,7 +457,7 @@ def stats():
 @app.post("/api/predict")
 async def predict_single(
     file:     UploadFile = File(...),
-    username: str = "anonymous",
+    username: str = "",
     gradcam:  bool = True,
 ):
     contents = await file.read()
@@ -505,7 +505,7 @@ async def predict_fusion(
     t1ce:     UploadFile = File(...),
     t2:       UploadFile = File(...),
     flair:    UploadFile = File(...),
-    username: str = "anonymous",
+    username: str = "",
     gradcam:  bool = True,
 ):
     imgs = []
@@ -562,7 +562,7 @@ async def predict_fusion(
 @app.post("/api/report")
 async def download_report(
     file:     UploadFile = File(...),
-    username: str = "anonymous",
+    username: str = "",
     name:     str = "User",
     mode:     str = "Single MRI",
 ):
