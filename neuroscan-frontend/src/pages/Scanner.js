@@ -39,8 +39,8 @@ const GRADCAM_EXPLANATIONS = {
 }
 
 export default function Scanner() {
-  const { user } = useAuth()
-  const username = user?.email || ''
+  const { user ,username} = useAuth()
+ 
   const user_name = user?.user_metadata?.full_name || user?.email || ''
    if (!user) return <Navigate to="/login" replace />
 
