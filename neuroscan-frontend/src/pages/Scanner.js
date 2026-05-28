@@ -77,8 +77,8 @@ async function fetchRecentScans(username, setRecentScans) {
 }
 
 export default function Scanner() {
-  const { user, username: authUsername, loading: authLoading } = useAuth()
-  const username = user?.email || authUsername  || ''
+  const { user, username: authUsername } = useAuth()
+  const username = authUsername || user?.email || ''
   const user_name = user?.user_metadata?.full_name || user?.email || 'User'
 
   // Patient info
@@ -96,7 +96,7 @@ export default function Scanner() {
   const [recentScans, setRecentScans]       = useState([])
 
   useEffect(() => {
-   if (username) fetchRecentScans(username, setRecentScans)
+    fetchRecentScans(username, setRecentScans)
   }, [username])
 
   function handleSingleFile(e) {
@@ -123,13 +123,11 @@ export default function Scanner() {
     if (!singleFile) return
     setLoading(true); setError(null); setResult(null)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const token = session?.access_token || ''
       const fd = new FormData()
       fd.append('file', singleFile)
       fd.append('username', username)
       fd.append('gradcam', 'true')
-      const res  = await fetch(`${API}/api/predict`, { method: 'POST', headers: token ? { 'Authorization': `Bearer ${token}` } : {}, body: fd })
+      const res  = await fetch(`${API}/api/predict`, { method: 'POST', body: fd })
       const data = await res.json()
       setResult({ ...data, mode: 'Single MRI' })
       fetchRecentScans(username, setRecentScans)
@@ -143,15 +141,12 @@ export default function Scanner() {
     if (!t1 || !t1ce || !t2 || !flair) return
     setLoading(true); setError(null); setResult(null)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const token = session?.access_token || ''
       const fd = new FormData()
       fd.append('t1', t1); fd.append('t1ce', t1ce)
       fd.append('t2', t2); fd.append('flair', flair)
       fd.append('username', username)
       fd.append('gradcam', 'true')
-      const res  = await fetch(`${API}/api/predict/fusion`, { method: 'POST', headers: token ? { 'Authorization': `Bearer ${token}` } : {},
-body: fd })
+      const res  = await fetch(`${API}/api/predict/fusion`, { method: 'POST', body: fd })
       const data = await res.json()
       setResult({ ...data, mode: 'Multi-Modal Fusion' })
       fetchRecentScans(username, setRecentScans)
@@ -281,7 +276,7 @@ body: fd })
                 : <><div style={{ fontSize: '2.5rem', opacity: 0.3, marginBottom: '0.8rem' }}>🔬</div><div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)' }}>Click to upload JPG or PNG MRI scan</div></>
               }
             </label>
-            <button onClick={runSinglePredict} disabled={!singleFile || loading || authLoading || !username} style={{ width: '100%', padding: '0.75rem', background: !singleFile || loading || authLoading || !username ? 'rgba(0,200,180,0.1)' : 'linear-gradient(135deg,#00C8B4,#0097A7)', border: 'none', borderRadius: '10px', cursor: !singleFile || loading  || authLoading || !username ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-mono)', fontSize: '0.85rem', fontWeight: 700, color: !singleFile || loading || authLoading || !username ? 'var(--text-3)' : '#000', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            <button onClick={runSinglePredict} disabled={!singleFile || loading} style={{ width: '100%', padding: '0.75rem', background: !singleFile || loading ? 'rgba(0,200,180,0.1)' : 'linear-gradient(135deg,#00C8B4,#0097A7)', border: 'none', borderRadius: '10px', cursor: !singleFile || loading ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-mono)', fontSize: '0.85rem', fontWeight: 700, color: !singleFile || loading ? 'var(--text-3)' : '#000', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
               {loading ? 'Analysing…' : '🧠 Analyse MRI'}
             </button>
           </div>
@@ -301,7 +296,7 @@ body: fd })
                 </label>
               ))}
             </div>
-            <button onClick={runFusionPredict} disabled={!Object.values(fusionFiles).every(Boolean) || loading || authLoading || !username} style={{ width: '100%', padding: '0.75rem', background: !Object.values(fusionFiles).every(Boolean) || loading || authLoading || !username ? 'rgba(0,200,180,0.1)' : 'linear-gradient(135deg,#00C8B4,#0097A7)', border: 'none', borderRadius: '10px', cursor: !Object.values(fusionFiles).every(Boolean) || loading || authLoading || !username ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-mono)', fontSize: '0.85rem', fontWeight: 700, color: !Object.values(fusionFiles).every(Boolean) || loading || authLoading || !username ? 'var(--text-3)' : '#000', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            <button onClick={runFusionPredict} disabled={!Object.values(fusionFiles).every(Boolean) || loading} style={{ width: '100%', padding: '0.75rem', background: !Object.values(fusionFiles).every(Boolean) || loading ? 'rgba(0,200,180,0.1)' : 'linear-gradient(135deg,#00C8B4,#0097A7)', border: 'none', borderRadius: '10px', cursor: !Object.values(fusionFiles).every(Boolean) || loading ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-mono)', fontSize: '0.85rem', fontWeight: 700, color: !Object.values(fusionFiles).every(Boolean) || loading ? 'var(--text-3)' : '#000', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
               {loading ? 'Analysing…' : '🧬 Run Fusion Analysis'}
             </button>
           </div>
@@ -322,15 +317,23 @@ body: fd })
         {result && !loading && (
           <div style={{ marginTop: '2rem' }}>
 
-            {patient.name && (
-              <div style={{ padding: '0.8rem 1.2rem', borderRadius: '10px', background: 'rgba(0,200,180,0.05)', border: '1px solid rgba(0,200,180,0.15)', fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--text-2)', marginBottom: '1rem', display: 'flex', gap: '2rem' }}>
-                <span>🧑‍⚕️ <strong style={{ color: 'var(--teal)' }}>{patient.name}</strong></span>
-                {patient.age && <span>Age: <strong style={{ color: 'var(--text-1)' }}>{patient.age}</strong></span>}
-                <span>Gender: <strong style={{ color: 'var(--text-1)' }}>{patient.gender}</strong></span>
+            {result.prediction === 'invalid' ? (
+              <div style={{ padding: '1.5rem', borderRadius: '12px', background: 'rgba(255,75,75,0.08)', border: '1px solid rgba(255,75,75,0.2)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#FF4B4B', textAlign: 'center' }}>
+                <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>🚫</div>
+                <div style={{ fontWeight: 600, marginBottom: '0.4rem' }}>Invalid Image</div>
+                <div style={{ fontSize: '0.68rem', color: 'var(--text-3)' }}>{result.error}</div>
               </div>
-            )}
+            ) : (
+              <>
+                {patient.name && (
+                  <div style={{ padding: '0.8rem 1.2rem', borderRadius: '10px', background: 'rgba(0,200,180,0.05)', border: '1px solid rgba(0,200,180,0.15)', fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--text-2)', marginBottom: '1rem', display: 'flex', gap: '2rem' }}>
+                    <span>🧑‍⚕️ <strong style={{ color: 'var(--teal)' }}>{patient.name}</strong></span>
+                    {patient.age && <span>Age: <strong style={{ color: 'var(--text-1)' }}>{patient.age}</strong></span>}
+                    <span>Gender: <strong style={{ color: 'var(--text-1)' }}>{patient.gender}</strong></span>
+                  </div>
+                )}
 
-            {/* Result card */}
+                {/* Result card */}
             <div style={{ border: `1px solid ${accent}33`, borderRadius: '16px', background: `${accent}08`, padding: '1.8rem 2rem', position: 'relative', overflow: 'hidden', marginBottom: '1.5rem' }}>
               <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg,transparent,${accent},transparent)` }} />
               <div style={{ fontSize: '0.6rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: accent, marginBottom: '0.5rem' }}>Classification Result · {result.mode}</div>
@@ -470,10 +473,11 @@ body: fd })
               ? <div style={{ padding: '0.8rem 1rem', borderRadius: '10px', background: 'rgba(255,107,107,0.08)', border: '1px solid rgba(255,107,107,0.2)', fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: '#FF6B6B' }}>⚠ Anomaly detected. Please consult a qualified radiologist or neurologist for clinical evaluation.</div>
               : <div style={{ padding: '0.8rem 1rem', borderRadius: '10px', background: 'rgba(0,200,180,0.08)', border: '1px solid rgba(0,200,180,0.2)', fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--teal)' }}>✓ No tumor indicators detected in this scan.</div>
             }
-          </div>
+          </>  
         )}
+      </div>
+        )}  
 
-        {/* ── RECENT SCANS ── */}
         {recentScans.length > 0 && (
           <div style={{ marginTop: '3rem' }}>
             <div style={{ height: 1, background: 'linear-gradient(90deg,transparent,rgba(12,242,200,0.12),transparent)', marginBottom: '1.5rem' }} />
@@ -483,10 +487,7 @@ body: fd })
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
               {recentScans.map((s) => {
                 const c    = CLASS_COLORS[s.prediction] || '#888'
-                const date = new Date(s.date + (s.date.endsWith('Z') ? '' : 'Z')).toLocaleString('en-IN', { 
-  month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', 
-  timeZone: 'Asia/Kolkata' 
-})
+                const date = new Date(s.date).toLocaleString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
                 return (
                   <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.7rem 1.1rem', borderRadius: '9px', background: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.045)', fontFamily: 'var(--font-mono)', fontSize: '0.67rem' }}>
                     <div style={{ color: 'var(--text-3)', minWidth: 130 }}>{date}</div>
