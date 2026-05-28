@@ -60,7 +60,7 @@ useEffect(() => {
       setLoading(false)
     }
     fetchScans()
-  }, [username]) // re-fetch when user changes
+  }, [username, user]) // re-fetch when user changes
 
   if (role === 'admin') return <Navigate to="/admin" replace />
 
