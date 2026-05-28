@@ -225,8 +225,9 @@ def add_scan_record(username, predicted_cls, confidence, mode):
             "confidence": round(float(confidence), 2),
             "mode":       mode
         }).execute()
+        print(f"Scan saved: {username} - {predicted_cls}")
     except Exception as e:
-        print(f"Could not save scan: {e}")
+        print(f"Could not save scan record: {e}")
 
 def get_user_scans(username):
     try:
