@@ -483,7 +483,7 @@ body: fd })
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
               {recentScans.map((s) => {
                 const c    = CLASS_COLORS[s.prediction] || '#888'
-                const date = new Date(s.date).toLocaleString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                const date = new Date(s.date).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })
                 return (
                   <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.7rem 1.1rem', borderRadius: '9px', background: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.045)', fontFamily: 'var(--font-mono)', fontSize: '0.67rem' }}>
                     <div style={{ color: 'var(--text-3)', minWidth: 130 }}>{date}</div>

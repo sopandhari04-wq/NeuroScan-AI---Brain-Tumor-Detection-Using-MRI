@@ -176,7 +176,7 @@ export default function AdminDashboard() {
               <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-1)', minWidth: 140 }}>{u.name}</div>
               <div style={{ color: 'var(--text-3)', minWidth: 120 }}>@{u.username}</div>
               <span style={{ background: `${rc}22`, color: rc, fontSize: '0.58rem', letterSpacing: '0.15em', padding: '0.2rem 0.6rem', borderRadius: '99px', border: `1px solid ${rc}55`, textTransform: 'uppercase' }}>{u.role}</span>
-              <div style={{ color: 'var(--text-3)', marginLeft: 'auto' }}>📋 {userScans.length} scans{lastScan ? ` · Last: ${new Date(lastScan.date).toLocaleDateString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}` : ' · No scans yet'}</div>
+              <div style={{ color: 'var(--text-3)', marginLeft: 'auto' }}>📋 {userScans.length} scans{lastScan ? ` · Last: ${new Date(lastScan.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })}` : ' · No scans yet'}</div>
             </div>
           )
         })}
@@ -195,7 +195,7 @@ export default function AdminDashboard() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
             {scans.map((s) => {
               const c    = CLS_COLORS[s.prediction] || '#888'
-              const date = new Date(s.date).toLocaleString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+              const date = new Date(s.date).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })
               const isToday = new Date(s.date).toDateString() === new Date().toDateString()
               return (
                 <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.7rem 1.1rem', borderRadius: '9px', background: isToday ? 'rgba(0,200,180,0.04)' : 'rgba(255,255,255,0.015)', border: isToday ? '1px solid rgba(0,200,180,0.15)' : '1px solid rgba(255,255,255,0.045)', fontFamily: 'var(--font-mono)', fontSize: '0.67rem' }}>
