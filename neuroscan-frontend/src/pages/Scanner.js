@@ -61,7 +61,7 @@ const labelStyle = {
 }
 
 export default function Scanner() {
-  const { user, username: authUsername } = useAuth()
+  const { user } = useAuth()
   const username = user?.email || 'anonymous'
   const user_id = user?.id
   const user_name = user?.user_metadata?.full_name || user?.email || 'User'
