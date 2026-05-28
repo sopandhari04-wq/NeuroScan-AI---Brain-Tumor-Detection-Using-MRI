@@ -39,10 +39,8 @@ const GRADCAM_EXPLANATIONS = {
 }
 
 export default function Scanner() {
-  const { user ,username} = useAuth()
- 
+  const { user, username } = useAuth()
   const user_name = user?.user_metadata?.full_name || user?.email || ''
-   if (!user) return <Navigate to="/login" replace />
 
   const [activeTab, setActiveTab]           = useState('single')
   const [loading, setLoading]               = useState(false)
@@ -53,6 +51,9 @@ export default function Scanner() {
   const [fusionFiles, setFusionFiles]       = useState({ t1: null, t1ce: null, t2: null, flair: null })
   const [fusionPreviews, setFusionPreviews] = useState({ t1: null, t1ce: null, t2: null, flair: null })
   const [pdfLoading, setPdfLoading]         = useState(false)
+
+  if (!user) return <Navigate to="/login" replace />
+
 
   function handleSingleFile(e) {
     const file = e.target.files[0]
