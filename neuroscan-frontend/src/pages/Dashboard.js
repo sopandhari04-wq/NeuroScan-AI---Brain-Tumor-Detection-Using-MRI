@@ -31,7 +31,7 @@ function CustomTooltip({ active, payload }) {
 export default function Dashboard() {
   const { user } = useAuth()
   const { role } = useAuth()
-if (role === 'admin') return <Navigate to="/admin" replace />
+
   const [scans, setScans]     = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -64,6 +64,8 @@ if (role === 'admin') return <Navigate to="/admin" replace />
     }
     fetchScans()
   }, [user?.id])
+
+  if (role === 'admin') return <Navigate to="/admin" replace />
 
   const total   = scans.length
   const tumors  = scans.filter(s => s.prediction !== 'notumor').length
