@@ -39,30 +39,30 @@ export default function Dashboard() {
   const username = user?.email || ''
 
   useEffect(() => {
-    async function fetchScans() {
-      if (!user) return
-      const { data: dataFull } = await supabase
+  async function fetchScans() {
+    if (!user) return
+    const { data: dataFull } = await supabase
+      .from('scans')
+      .select('*')
+      .eq('username', username)
+      .order('date', { ascending: false })
+
+    if (dataFull && dataFull.length > 0) {
+      setScans(dataFull)
+    } else {
+      const prefix = username.split('@')[0]
+      const { data: dataPrefix } = await supabase
         .from('scans')
         .select('*')
-        .eq('username', username)
+        .eq('username', prefix)
         .order('date', { ascending: false })
-
-      if (dataFull && dataFull.length > 0) {
-        setScans(dataFull)
-      } else {
-        const prefix = username.split('@')[0]
-        const { data: dataPrefix } = await supabase
-          .from('scans')
-          .select('*')
-          .eq('username', prefix)
-          .order('date', { ascending: false })
-        if (dataPrefix) setScans(dataPrefix)
-      }
-      setLoading(false)
+      if (dataPrefix) setScans(dataPrefix)
     }
-    fetchScans()
-    /* eslint-disable-next-line */
-  }, [])
+    setLoading(false)
+  }
+  fetchScans()
+// eslint-disable-next-line react-hooks/exhaustive-deps
+}, [])
 
   if (role === 'admin') return <Navigate to="/admin" replace />
 
