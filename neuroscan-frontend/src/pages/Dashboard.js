@@ -60,7 +60,10 @@ useEffect(() => {
       setLoading(false)
     }
     fetchScans()
-  }, [username, user]) // re-fetch when user changes
+    const interval = setInterval(fetchScans, 30000)
+    return () => clearInterval(interval)
+  /* eslint-disable-next-line */
+  }, [])
 
   if (role === 'admin') return <Navigate to="/admin" replace />
 
@@ -168,7 +171,18 @@ useEffect(() => {
         )}
       </div>
 
-      <Link to="/scanner" className="btn btn-primary" style={{ display: 'inline-flex' }}>Run new scan →</Link>
+      <div style={{ display: 'flex', gap: '1rem' }}>
+  <button onClick={() => window.location.reload()} style={{
+    background: 'rgba(0,200,180,0.08)',
+    border: '1px solid rgba(0,200,180,0.3)',
+    borderRadius: '8px', color: 'var(--teal)',
+    fontFamily: 'var(--font-mono)', fontSize: '0.72rem',
+    padding: '0.5rem 1.2rem', cursor: 'pointer'
+  }}>
+    ↺ Refresh
+  </button>
+  <Link to="/scanner" className="btn btn-primary" style={{ display: 'inline-flex' }}>Run new scan →</Link>
+</div>
     </div>
   )
 }
