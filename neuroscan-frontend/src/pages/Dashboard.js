@@ -63,8 +63,9 @@ export default function Dashboard() {
       setLoading(false)
     }
     fetchScans()
- }, [user?.id, username, user])
-
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, username])
+  
   if (role === 'admin') return <Navigate to="/admin" replace />
 
   const total   = scans.length
