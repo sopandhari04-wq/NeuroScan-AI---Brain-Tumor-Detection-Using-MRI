@@ -17,7 +17,7 @@ function StatCard({ val, label, color }) {
 }
 
 export default function PatientDashboard() {
-  const { user, username, user_name } = useAuth()
+  const {  username, user_name } = useAuth()
   const [scans, setScans]     = useState([])
   const [loading, setLoading] = useState(true)
 
