@@ -414,46 +414,117 @@ export default function Scanner() {
               </div>
             )}
 
-            {/* Grad-CAM XAI */}
-            {result.gradcam && gradcamExp && (
-              <div style={cardStyle()}>
-                <div style={topLine} />
-                {secTitle('Grad-CAM XAI Analysis', '🔥')}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '0.8rem', marginBottom: '1.5rem' }}>
-                  {[['Activation Intensity',`${result.gradcam.activation_intensity}%`],['Primary Region',result.gradcam.region],['Heatmap Coverage',`${result.gradcam.focus_area_pct}%`],['Attention Pattern',result.gradcam.pattern]].map(([label, value]) => (
-                    <div key={label} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '10px', padding: '0.8rem', textAlign: 'center' }}>
-                      <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.9rem', fontWeight: 700, color: accent }}>{value}</div>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.55rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-3)', marginTop: '0.2rem' }}>{label}</div>
-                    </div>
-                  ))}
-                </div>
-                <div style={{ marginBottom: '1.2rem', padding: '0.8rem 1rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>Model Confidence</span>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: accent }}>{result.gradcam.conf_interp} · {result.gradcam.conf_pct}%</span>
-                  </div>
-                  <div style={{ height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 99, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${result.gradcam.conf_pct}%`, background: `linear-gradient(90deg,${accent}88,${accent})`, borderRadius: 99 }} />
-                  </div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                  {[
-                    { dot: '#FF4444', title: 'Red/Yellow Regions — Primary AI Attention', text: gradcamExp.red },
-                    { dot: '#4488FF', title: 'Blue/Green Regions — Low Attention Zones',  text: gradcamExp.blue },
-                    { dot: accent,    title: `Attention Pattern: ${result.gradcam.pattern}`, text: gradcamExp.pattern(result.gradcam) },
-                    { dot: '#FFB347', title: 'Anatomical Region Analysis', text: gradcamExp.region(result.gradcam) },
-                  ].map(({ dot, title, text }) => (
-                    <div key={title} style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', padding: '0.8rem 1rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: dot, flexShrink: 0, marginTop: 5 }} />
-                      <div>
-                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', fontWeight: 600, color: 'var(--text-1)', marginBottom: '0.3rem' }}>{title}</div>
-                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.67rem', color: 'var(--text-3)', lineHeight: 1.75 }}>{text}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+           {/* Grad-CAM XAI */}
+{result.gradcam && gradcamExp && (
+  <>
+    <div style={cardStyle()}>
+      <div style={topLine} />
+      {secTitle('Grad-CAM XAI Analysis', '🔥')}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '0.8rem', marginBottom: '1.5rem' }}>
+        {[['Activation Intensity',`${result.gradcam.activation_intensity}%`],['Primary Region',result.gradcam.region],['Heatmap Coverage',`${result.gradcam.focus_area_pct}%`],['Attention Pattern',result.gradcam.pattern]].map(([label, value]) => (
+          <div key={label} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '10px', padding: '0.8rem', textAlign: 'center' }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.9rem', fontWeight: 700, color: accent }}>{value}</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.55rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-3)', marginTop: '0.2rem' }}>{label}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ marginBottom: '1.2rem', padding: '0.8rem 1rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>Model Confidence</span>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: accent }}>{result.gradcam.conf_interp} · {result.gradcam.conf_pct}%</span>
+        </div>
+        <div style={{ height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 99, overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${result.gradcam.conf_pct}%`, background: `linear-gradient(90deg,${accent}88,${accent})`, borderRadius: 99 }} />
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+        {[
+          { dot: '#FF4444', title: 'Red/Yellow Regions — Primary AI Attention', text: gradcamExp.red },
+          { dot: '#4488FF', title: 'Blue/Green Regions — Low Attention Zones',  text: gradcamExp.blue },
+          { dot: accent,    title: `Attention Pattern: ${result.gradcam.pattern}`, text: gradcamExp.pattern(result.gradcam) },
+          { dot: '#FFB347', title: 'Anatomical Region Analysis', text: gradcamExp.region(result.gradcam) },
+        ].map(({ dot, title, text }) => (
+          <div key={title} style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', padding: '0.8rem 1rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: dot, flexShrink: 0, marginTop: 5 }} />
+            <div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', fontWeight: 600, color: 'var(--text-1)', marginBottom: '0.3rem' }}>{title}</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.67rem', color: 'var(--text-3)', lineHeight: 1.75 }}>{text}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    {/* Sub-region Segmentation */}
+    {result.prediction !== 'notumor' && result.gradcam.subregions && (
+      <div style={{ ...cardStyle(), border: '1px solid rgba(255,87,87,0.2)', background: 'rgba(255,87,87,0.03)' }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg,transparent,#FF5757,transparent)' }} />
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-1)', marginBottom: '1rem' }}>
+          🧬 <span style={{ color: '#FF5757' }}>Sub-Region Segmentation</span>
+        </div>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--text-3)', marginBottom: '1rem' }}>
+          Tumor sub-regions derived from Grad-CAM activation thresholds · Total tumor coverage: {result.gradcam.total_tumor_pct}%
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+          {Object.entries(result.gradcam.subregions).map(([key, sr]) => (
+            <div key={key} style={{ padding: '0.8rem 1rem', borderRadius: '10px', background: `${sr.color}08`, border: `1px solid ${sr.color}22` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.4rem' }}>
+                <span style={{ background: sr.color, color: '#000', fontFamily: 'var(--font-mono)', fontSize: '0.55rem', fontWeight: 700, padding: '0.15rem 0.45rem', borderRadius: '4px' }}>{key}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: sr.color, fontWeight: 600 }}>{sr.label}</span>
+                <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: sr.color }}>{sr.pct}%</span>
               </div>
-            )}
+              <div style={{ height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 99, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${Math.min(sr.pct * 2, 100)}%`, background: sr.color, borderRadius: 99 }} />
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ marginTop: '0.8rem', fontFamily: 'var(--font-mono)', fontSize: '0.58rem', color: 'var(--text-3)', padding: '0.5rem 0.8rem', background: 'rgba(255,255,255,0.02)', borderRadius: '6px' }}>
+          ET = Enhancing Tumor (active growth) · TC = Tumor Core (necrotic tissue) · WT = Whole Tumor Edge (edema/infiltration)
+        </div>
+      </div>
+    )}
+
+    {/* Radiomics */}
+    {result.gradcam.radiomics && result.prediction !== 'notumor' && (
+      <div style={{ ...cardStyle(), border: '1px solid rgba(123,130,245,0.2)', background: 'rgba(123,130,245,0.03)' }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg,transparent,#7B82F5,transparent)' }} />
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-1)', marginBottom: '1rem' }}>
+          📐 <span style={{ color: '#7B82F5' }}>Radiomics Features</span>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '0.8rem', marginBottom: '1rem' }}>
+          {[
+            ['Est. Area',     `${result.gradcam.radiomics.est_area_cm2} cm²`],
+            ['Est. Volume',   `${result.gradcam.radiomics.est_volume_cm3} cm³`],
+            ['Est. Diameter', `${result.gradcam.radiomics.est_diameter_cm} cm`],
+            ['Sphericity',    result.gradcam.radiomics.sphericity],
+          ].map(([label, value]) => (
+            <div key={label} style={{ background: 'rgba(123,130,245,0.06)', border: '1px solid rgba(123,130,245,0.15)', borderRadius: '10px', padding: '0.8rem', textAlign: 'center' }}>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 700, color: '#7B82F5' }}>{value}</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.55rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-3)', marginTop: '0.2rem' }}>{label}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem', marginBottom: '0.8rem' }}>
+          {[
+            ['Shape',               result.gradcam.radiomics.shape_desc],
+            ['Surface-to-Vol Ratio',result.gradcam.radiomics.svr],
+            ['Intensity Mean',      `${result.gradcam.radiomics.intensity_mean}%`],
+            ['Intensity Std Dev',   `${result.gradcam.radiomics.intensity_std}%`],
+          ].map(([label, value]) => (
+            <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0.8rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)', fontFamily: 'var(--font-mono)', fontSize: '0.63rem' }}>
+              <span style={{ color: 'var(--text-3)' }}>{label}</span>
+              <span style={{ color: '#7B82F5', fontWeight: 600 }}>{value}</span>
+            </div>
+          ))}
+        </div>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.58rem', color: 'var(--text-3)', padding: '0.5rem 0.8rem', background: 'rgba(255,255,255,0.02)', borderRadius: '6px' }}>
+          ⚠ Volume estimates are approximations based on 2D slice analysis. True 3D volumetrics require full MRI series.
+        </div>
+      </div>
+    )}
+  </>
+)}
 
             {/* AI Radiology Report */}
             {result.tumor_info && (
