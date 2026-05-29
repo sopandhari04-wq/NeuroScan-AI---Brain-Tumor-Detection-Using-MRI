@@ -20,7 +20,7 @@ function ScanSlot({ index, file, preview, result, loading, onFile }) {
       </div>
 
       {/* Upload */}
-      <label style={{ display: 'block', border: `1px dashed ${preview ? accent : 'rgba(0,200,180,0.25)'}`, borderRadius: '12px', padding: '1.5rem', textAlign: 'center', cursor: 'pointer', background: 'rgba(0,200,180,0.02)', minHeight: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <label style={{  border: `1px dashed ${preview ? accent : 'rgba(0,200,180,0.25)'}`, borderRadius: '12px', padding: '1.5rem', textAlign: 'center', cursor: 'pointer', background: 'rgba(0,200,180,0.02)', minHeight: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <input type="file" accept=".jpg,.jpeg,.png" onChange={onFile} style={{ display: 'none' }} />
         {preview
           ? <img src={preview} alt={`Scan ${index}`} style={{ maxHeight: 200, borderRadius: 8, maxWidth: '100%' }} />
