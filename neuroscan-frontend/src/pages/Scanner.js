@@ -339,8 +339,7 @@ export default function Scanner() {
               </div>
             ) : (
               <>
-                {patient.name && (
-                  <div style={{ padding: '0.8rem 1.2rem', borderRadius: '10px', background: 'rgba(0,200,180,0.05)', border: '1px solid rgba(0,200,180,0.15)', fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--text-2)', marginBottom: '1rem', display: 'flex', gap: '2rem' }}>
+               
                     {result.dicom_info && (
   <div style={{ padding: '0.8rem 1.2rem', borderRadius: '10px', background: 'rgba(123,130,245,0.05)', border: '1px solid rgba(123,130,245,0.2)', fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-2)', marginBottom: '1rem' }}>
     <div style={{ color: '#7B82F5', fontWeight: 600, marginBottom: '0.5rem' }}>🏥 DICOM Metadata — Anonymized</div>
@@ -361,6 +360,9 @@ export default function Scanner() {
     </div>
   </div>
 )}
+
+ {patient.name && (
+                  <div style={{ padding: '0.8rem 1.2rem', borderRadius: '10px', background: 'rgba(0,200,180,0.05)', border: '1px solid rgba(0,200,180,0.15)', fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--text-2)', marginBottom: '1rem', display: 'flex', gap: '2rem' }}>
                     <span>🧑‍⚕️ <strong style={{ color: 'var(--teal)' }}>{patient.name}</strong></span>
                     {patient.age && <span>Age: <strong style={{ color: 'var(--text-1)' }}>{patient.age}</strong></span>}
                     <span>Gender: <strong style={{ color: 'var(--text-1)' }}>{patient.gender}</strong></span>
