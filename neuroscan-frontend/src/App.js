@@ -12,6 +12,7 @@ import AdminDashboard from './pages/AdminDashboard'
 import Scanner from './pages/Scanner'
 import ScanComparison from './pages/ScanComparison'
 import Statistics from './pages/Statistics'
+import PatientTimeline from './pages/PatientTimeline'
 
 export const AuthContext = createContext(null)
 export const useAuth = () => useContext(AuthContext)
@@ -133,6 +134,9 @@ export default function App() {
 
         {/* Statistics — all roles (admin sees all, others see own) */}
         <Route path="/statistics" element={<ProtectedRoute><Statistics /></ProtectedRoute>} />
+
+        {/* Patient Timeline — longitudinal tracking */}
+        <Route path="/timeline" element={<ProtectedRoute><PatientTimeline /></ProtectedRoute>} />
 
         <Route path="*"          element={<Navigate to="/" replace />} />
       </Routes>

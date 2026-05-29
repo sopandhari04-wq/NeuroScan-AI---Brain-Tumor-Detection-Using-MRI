@@ -23,6 +23,7 @@ const authLinks = user
         { to: '/scanner', label: 'Scanner' },
         { to: '/compare', label: 'Compare' },
         { to: '/statistics', label: 'Statistics' },
+        { to: '/timeline', label: 'Timeline' },
       ]
     : []
 
