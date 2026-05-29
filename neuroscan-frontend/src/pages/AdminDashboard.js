@@ -150,10 +150,11 @@ export default function AdminDashboard() {
           </div>
           <div>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--text-3)', marginBottom: '0.3rem', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Role</div>
-            <select style={{ ...inputStyle, cursor: 'pointer' }} value={newUser.role} onChange={e => setNewUser(p => ({ ...p, role: e.target.value }))}>
-              <option value="user">User</option>
-              <option value="admin">Admin</option>
-            </select>
+           <select style={{ ...inputStyle, cursor: 'pointer' }} value={newUser.role} onChange={e => setNewUser(p => ({ ...p, role: e.target.value }))}>
+  <option value="patient">Patient</option>
+  <option value="doctor">Doctor</option>
+  <option value="admin">Admin</option>
+</select>
           </div>
           <button onClick={handleAddUser} style={{ background: 'linear-gradient(135deg,#00C8B4,#0097A7)', border: 'none', borderRadius: '8px', color: '#000', fontFamily: 'var(--font-mono)', fontSize: '0.72rem', fontWeight: 700, padding: '0.55rem 1.2rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
             Add User

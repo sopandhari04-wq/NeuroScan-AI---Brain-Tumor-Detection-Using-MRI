@@ -13,8 +13,17 @@ export default function Navbar() {
     { to: '/features', label: 'Features' },
     { to: '/about', label: 'About' },
   ]
-  const authLinks = user
-    ? [{ to: '/dashboard', label: 'Dashboard' }, { to: '/scanner', label: 'Scanner' }]
+ const { role } = useAuth()
+
+const authLinks = user
+    ? [
+        role === 'admin' ? { to: '/admin', label: 'Dashboard' } :
+        role === 'doctor' ? { to: '/dashboard', label: 'Dashboard' } :
+        { to: '/patient', label: 'Dashboard' },
+        { to: '/scanner', label: 'Scanner' },
+        { to: '/compare', label: 'Compare' },
+        { to: '/statistics', label: 'Statistics' },
+      ]
     : []
 
   async function handleSignOut() {

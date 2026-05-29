@@ -10,6 +10,8 @@ import Dashboard from './pages/Dashboard'
 import PatientDashboard from './pages/PatientDashboard'
 import AdminDashboard from './pages/AdminDashboard'
 import Scanner from './pages/Scanner'
+import ScanComparison from './pages/ScanComparison'
+import Statistics from './pages/Statistics'
 
 export const AuthContext = createContext(null)
 export const useAuth = () => useContext(AuthContext)
@@ -125,6 +127,12 @@ export default function App() {
 
         {/* Scanner — all roles */}
         <Route path="/scanner"   element={<ProtectedRoute><Scanner /></ProtectedRoute>} />
+
+        {/* Scan Comparison — all roles */}
+        <Route path="/compare"   element={<ProtectedRoute><ScanComparison /></ProtectedRoute>} />
+
+        {/* Statistics — all roles (admin sees all, others see own) */}
+        <Route path="/statistics" element={<ProtectedRoute><Statistics /></ProtectedRoute>} />
 
         <Route path="*"          element={<Navigate to="/" replace />} />
       </Routes>
