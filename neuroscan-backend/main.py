@@ -176,6 +176,7 @@ def overlay_gradcam(pil_img, cam):
     overlay = Image.fromarray((0.45 * hmap + 0.55 * orig).astype(np.uint8))
     return overlay
 
+
 def analyze_gradcam(cam, predicted_cls, confidence):
     h, w = cam.shape
     peak_y, peak_x = np.unravel_index(cam.argmax(), cam.shape)
@@ -202,18 +203,104 @@ def analyze_gradcam(cam, predicted_cls, confidence):
     elif conf_pct >= 60: conf_interp = "Moderate Certainty"
     else:                conf_interp = "Low Certainty"
 
-    return {
-        "region": f"{vert} {horiz}",
-        "activation_intensity": round(activation_intensity, 1),
-        "focus_area_pct": round(focus_area_pct, 1),
-        "high_act_pct": round(high_act_pct, 1),
-        "mean_activation": round(mean_activation, 1),
-        "pattern": pattern,
-        "act_level": act_level,
-        "conf_interp": conf_interp,
-        "conf_pct": conf_pct,
-    }
+    # ── Sub-region segmentation from Grad-CAM thresholds ──
+    # ET (Enhancing Tumor) — highest activation > 0.75
+    # TC (Tumor Core)      — high activation 0.5-0.75
+    # WT (Whole Tumor)     — all activation > 0.25
+    et_mask = cam > 0.75
+    tc_mask = (cam > 0.50) & (cam <= 0.75)
+    wt_mask = (cam > 0.25) & (cam <= 0.50)
 
+    et_pct = float(np.mean(et_mask)) * 100
+    tc_pct = float(np.mean(tc_mask)) * 100
+    wt_pct = float(np.mean(wt_mask)) * 100
+
+    total_tumor_pct = et_pct + tc_pct + wt_pct
+
+    # ── Radiomics features ──
+    # Tumor area in pixels
+    tumor_mask   = cam > 0.5
+    tumor_pixels = int(np.sum(tumor_mask))
+    total_pixels = h * w
+
+    # Sphericity — ratio of tumor area to bounding box area
+    if tumor_pixels > 0:
+        rows = np.any(tumor_mask, axis=1)
+        cols = np.any(tumor_mask, axis=0)
+        rmin, rmax = np.where(rows)[0][[0, -1]]
+        cmin, cmax = np.where(cols)[0][[0, -1]]
+        bbox_area  = max((rmax - rmin + 1) * (cmax - cmin + 1), 1)
+        sphericity = round(float(tumor_pixels / bbox_area), 2)
+        bbox_h     = int(rmax - rmin + 1)
+        bbox_w     = int(cmax - cmin + 1)
+        # Estimated diameter (average of bbox dimensions normalized to 128px = ~20cm FOV)
+        est_diameter_cm = round(((bbox_h + bbox_w) / 2) / 128 * 20, 1)
+        # Estimated area in cm² (128px ~ 20cm)
+        est_area_cm2    = round(tumor_pixels / (128 * 128) * (20 * 20), 1)
+        # Estimated volume in cm³ (assume roughly spherical slice)
+        import math
+        est_volume_cm3  = round((4/3) * math.pi * (est_diameter_cm/2)**3 / 2, 1)
+    else:
+        sphericity       = 0.0
+        bbox_h           = 0
+        bbox_w           = 0
+        est_diameter_cm  = 0.0
+        est_area_cm2     = 0.0
+        est_volume_cm3   = 0.0
+
+    # Surface-to-volume ratio (perimeter / area approximation)
+    if tumor_pixels > 0:
+        # Approximate perimeter using edge detection
+        from scipy import ndimage
+        eroded       = ndimage.binary_erosion(tumor_mask)
+        perimeter_px = int(np.sum(tumor_mask) - np.sum(eroded))
+        svr          = round(perimeter_px / max(tumor_pixels, 1), 2)
+    else:
+        svr = 0.0
+
+    # Intensity stats from cam
+    tumor_vals       = cam[tumor_mask] if tumor_pixels > 0 else np.array([0.0])
+    intensity_mean   = round(float(tumor_vals.mean()) * 100, 1)
+    intensity_std    = round(float(tumor_vals.std()) * 100, 1)
+    intensity_max    = round(float(tumor_vals.max()) * 100, 1)
+
+    # Tumor shape description
+    if sphericity >= 0.75:   shape_desc = "Well-circumscribed (round)"
+    elif sphericity >= 0.55: shape_desc = "Moderately irregular"
+    else:                    shape_desc = "Highly irregular (infiltrative)"
+
+    return {
+        "region":               f"{vert} {horiz}",
+        "activation_intensity": round(activation_intensity, 1),
+        "focus_area_pct":       round(focus_area_pct, 1),
+        "high_act_pct":         round(high_act_pct, 1),
+        "mean_activation":      round(mean_activation, 1),
+        "pattern":              pattern,
+        "act_level":            act_level,
+        "conf_interp":          conf_interp,
+        "conf_pct":             conf_pct,
+        # Sub-region segmentation
+        "subregions": {
+            "ET": {"pct": round(et_pct, 1), "label": "Enhancing Tumor",  "color": "#FF5757"},
+            "TC": {"pct": round(tc_pct, 1), "label": "Tumor Core",       "color": "#FFAD3B"},
+            "WT": {"pct": round(wt_pct, 1), "label": "Whole Tumor Edge", "color": "#FFE566"},
+        },
+        "total_tumor_pct": round(total_tumor_pct, 1),
+        # Radiomics
+        "radiomics": {
+            "tumor_pixels":     tumor_pixels,
+            "est_area_cm2":     est_area_cm2,
+            "est_volume_cm3":   est_volume_cm3,
+            "est_diameter_cm":  est_diameter_cm,
+            "sphericity":       sphericity,
+            "svr":              svr,
+            "intensity_mean":   intensity_mean,
+            "intensity_std":    intensity_std,
+            "intensity_max":    intensity_max,
+            "shape_desc":       shape_desc,
+        },
+    }
+    
 def pil_from_upload(file_bytes: bytes) -> Image.Image:
     return Image.open(BytesIO(file_bytes)).convert("RGB")
 
