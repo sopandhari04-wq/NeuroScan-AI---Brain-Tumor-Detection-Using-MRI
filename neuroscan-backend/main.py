@@ -24,6 +24,8 @@ from reportlab.lib import colors
 from supabase import create_client, Client
 from fastapi import Request
 import jwt
+import pydicom
+import pydicom._storage_sopclass_uids
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -213,6 +215,46 @@ def analyze_gradcam(cam, predicted_cls, confidence):
 
 def pil_from_upload(file_bytes: bytes) -> Image.Image:
     return Image.open(BytesIO(file_bytes)).convert("RGB")
+
+def load_dicom(file_bytes: bytes):
+    ds = pydicom.dcmread(io.BytesIO(file_bytes))
+
+    # Extract metadata before stripping
+    dicom_info = {
+        "patient_name":    str(getattr(ds, 'PatientName',        'ANONYMIZED')),
+        "patient_id":      str(getattr(ds, 'PatientID',          'ANONYMIZED')),
+        "study_date":      str(getattr(ds, 'StudyDate',          'Unknown')),
+        "modality":        str(getattr(ds, 'Modality',           'Unknown')),
+        "manufacturer":    str(getattr(ds, 'Manufacturer',       'Unknown')),
+        "study_desc":      str(getattr(ds, 'StudyDescription',   'Unknown')),
+        "slice_thickness": str(getattr(ds, 'SliceThickness',     'Unknown')),
+    }
+
+    # Strip all patient metadata (HIPAA)
+    for tag in ['PatientName','PatientID','PatientBirthDate','PatientSex',
+                'PatientAge','PatientAddress','PatientTelephoneNumbers',
+                'ReferringPhysicianName','InstitutionName']:
+        if hasattr(ds, tag):
+            delattr(ds, tag)
+
+    # Convert pixel array to PIL image
+    pixel_array = ds.pixel_array.astype(float)
+    if hasattr(ds, 'RescaleSlope') and hasattr(ds, 'RescaleIntercept'):
+        pixel_array = pixel_array * float(ds.RescaleSlope) + float(ds.RescaleIntercept)
+
+    # Normalize to 0-255
+    pixel_array -= pixel_array.min()
+    if pixel_array.max() > 0:
+        pixel_array /= pixel_array.max()
+    pixel_array = (pixel_array * 255).astype('uint8')
+
+    # Handle different array shapes
+    if len(pixel_array.shape) == 2:
+        pil_img = Image.fromarray(pixel_array).convert('RGB')
+    else:
+        pil_img = Image.fromarray(pixel_array[:,:,0]).convert('RGB')
+
+    return pil_img, dicom_info
 
 def preprocess(pil_img: Image.Image) -> np.ndarray:
     img_resized = pil_img.resize((128, 128))
@@ -490,9 +532,13 @@ async def predict_single(
 
     print(f"Predict called with username: {username}")
 
-    contents = await file.read()
-    pil_img  = pil_from_upload(contents)
-    arr      = preprocess(pil_img)
+    contents   = await file.read()
+    dicom_info = None
+    if file.filename and file.filename.lower().endswith('.dcm'):
+        pil_img, dicom_info = load_dicom(contents)
+    else:
+        pil_img = pil_from_upload(contents)
+    arr = preprocess(pil_img)
 
     interpreter   = get_tflite()
     probs         = predict_tflite(interpreter, arr)
@@ -542,6 +588,7 @@ if confidence < 0.60:
         "tumor_info":    TUMOR_DB[predicted_cls],
         "gradcam":       cam_data,
         "overlay_image": overlay_b64,
+        "dicom_info":    dicom_info,
     }
 
 
@@ -577,8 +624,12 @@ async def predict_fusion(
     imgs = []
     for f in [t1, t1ce, t2, flair]:
         contents = await f.read()
-        pil_img  = Image.open(BytesIO(contents)).convert("RGB")
+        if f.filename and f.filename.lower().endswith('.dcm'):
+            pil_img, _ = load_dicom(contents)
+        else:
+            pil_img = Image.open(BytesIO(contents)).convert("RGB")
         imgs.append(pil_img)
+    dicom_info = None
 
     gray_arrays = [np.array(p.convert("L").resize((128,128)), dtype=np.float32)/255.0 for p in imgs]
     fused_4ch   = np.stack(gray_arrays, axis=-1)
@@ -605,6 +656,7 @@ if confidence < 0.60:
         "tumor_info":    None,
         "gradcam":       None,
         "overlay_image": None,
+        "dicom_info":    dicom_info,
         "error":         "This image does not appear to be a valid MRI scan. Please upload a proper brain MRI."
     }
 

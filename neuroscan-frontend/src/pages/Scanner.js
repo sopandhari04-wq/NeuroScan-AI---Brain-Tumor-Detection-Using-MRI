@@ -94,18 +94,25 @@ export default function Scanner() {
   const [fusionPreviews, setFusionPreviews] = useState({ t1: null, t1ce: null, t2: null, flair: null })
   const [pdfLoading, setPdfLoading]         = useState(false)
   const [recentScans, setRecentScans]       = useState([])
+  const [dicomFile, setDicomFile] = useState(false)
 
   useEffect(() => {
     fetchRecentScans(username, setRecentScans)
   }, [username])
 
   function handleSingleFile(e) {
-    const file = e.target.files[0]
-    if (!file) return
-    setSingleFile(file)
+  const file = e.target.files[0]
+  if (!file) return
+  setSingleFile(file)
+  setResult(null); setError(null)
+  if (file.name.toLowerCase().endsWith('.dcm')) {
+    setSinglePreview(null)
+    setDicomFile(true)
+  } else {
     setSinglePreview(URL.createObjectURL(file))
-    setResult(null); setError(null)
+    setDicomFile(false)
   }
+}
 
   function handleFusionFile(key, e) {
     const file = e.target.files[0]
@@ -274,11 +281,13 @@ export default function Scanner() {
         {activeTab === 'single' && (
           <div>
             <label style={{ display: 'block', border: '1px dashed rgba(0,200,180,0.25)', borderRadius: '12px', padding: '2rem', textAlign: 'center', cursor: 'pointer', background: 'rgba(0,200,180,0.02)', marginBottom: '1rem' }}>
-              <input type="file" accept=".jpg,.jpeg,.png" onChange={handleSingleFile} style={{ display: 'none' }} />
-              {singlePreview
-                ? <img src={singlePreview} alt="MRI" style={{ maxHeight: 300, borderRadius: 8, maxWidth: '100%' }} />
-                : <><div style={{ fontSize: '2.5rem', opacity: 0.3, marginBottom: '0.8rem' }}>🔬</div><div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)' }}>Click to upload JPG or PNG MRI scan</div></>
-              }
+              <input type="file" accept=".jpg,.jpeg,.png,.dcm" onChange={handleSingleFile} style={{ display: 'none' }} />
+             {singlePreview
+  ? <img src={singlePreview} alt="MRI" style={{ maxHeight: 300, borderRadius: 8, maxWidth: '100%' }} />
+  : dicomFile
+  ? <><div style={{ fontSize: '2.5rem', marginBottom: '0.8rem' }}>🏥</div><div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--teal)' }}>DICOM file loaded — ready to analyse</div></>
+  : <><div style={{ fontSize: '2.5rem', opacity: 0.3, marginBottom: '0.8rem' }}>🔬</div><div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)' }}>Click to upload JPG, PNG or DICOM (.dcm)</div></>
+}
             </label>
             <button onClick={runSinglePredict} disabled={!singleFile || loading} style={{ width: '100%', padding: '0.75rem', background: !singleFile || loading ? 'rgba(0,200,180,0.1)' : 'linear-gradient(135deg,#00C8B4,#0097A7)', border: 'none', borderRadius: '10px', cursor: !singleFile || loading ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-mono)', fontSize: '0.85rem', fontWeight: 700, color: !singleFile || loading ? 'var(--text-3)' : '#000', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
               {loading ? 'Analysing…' : '🧠 Analyse MRI'}
@@ -331,6 +340,26 @@ export default function Scanner() {
               <>
                 {patient.name && (
                   <div style={{ padding: '0.8rem 1.2rem', borderRadius: '10px', background: 'rgba(0,200,180,0.05)', border: '1px solid rgba(0,200,180,0.15)', fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--text-2)', marginBottom: '1rem', display: 'flex', gap: '2rem' }}>
+                    {result.dicom_info && (
+  <div style={{ padding: '0.8rem 1.2rem', borderRadius: '10px', background: 'rgba(123,130,245,0.05)', border: '1px solid rgba(123,130,245,0.2)', fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-2)', marginBottom: '1rem' }}>
+    <div style={{ color: '#7B82F5', fontWeight: 600, marginBottom: '0.5rem' }}>🏥 DICOM Metadata — Anonymized</div>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '0.5rem' }}>
+      {[
+        ['Modality',        result.dicom_info.modality],
+        ['Study Date',      result.dicom_info.study_date],
+        ['Manufacturer',    result.dicom_info.manufacturer],
+        ['Study Desc',      result.dicom_info.study_desc],
+        ['Slice Thickness', result.dicom_info.slice_thickness],
+        ['Patient',         'ANONYMIZED ✓'],
+      ].map(([label, value]) => (
+        <div key={label}>
+          <span style={{ color: 'var(--text-3)' }}>{label}: </span>
+          <span style={{ color: 'var(--text-1)' }}>{value}</span>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
                     <span>🧑‍⚕️ <strong style={{ color: 'var(--teal)' }}>{patient.name}</strong></span>
                     {patient.age && <span>Age: <strong style={{ color: 'var(--text-1)' }}>{patient.age}</strong></span>}
                     <span>Gender: <strong style={{ color: 'var(--text-1)' }}>{patient.gender}</strong></span>
