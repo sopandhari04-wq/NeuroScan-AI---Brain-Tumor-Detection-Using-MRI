@@ -549,18 +549,18 @@ async def predict_single(
 
 
 
-if confidence < 0.60:
-    return {
-        "prediction":    "invalid",
-        "display_name":  "Invalid Input",
-        "confidence":    confidence,
-        "color":         "#888888",
-        "probabilities": {CLASS_NAMES[i]: float(probs[i]) for i in range(len(CLASS_NAMES))},
-        "tumor_info":    None,
-        "gradcam":       None,
-        "overlay_image": None,
-        "error":         "This image does not appear to be a valid MRI scan. Please upload a proper brain MRI."
-    }
+    if confidence < 0.60:
+        return {
+            "prediction":    "invalid",
+            "display_name":  "Invalid Input",
+            "confidence":    confidence,
+            "color":         "#888888",
+            "probabilities": {CLASS_NAMES[i]: float(probs[i]) for i in range(len(CLASS_NAMES))},
+            "tumor_info":    None,
+            "gradcam":       None,
+            "overlay_image": None,
+            "error":         "This image does not appear to be a valid MRI scan. Please upload a proper brain MRI."
+        }
 
     add_scan_record(username, predicted_cls, confidence, "Single MRI")
 
