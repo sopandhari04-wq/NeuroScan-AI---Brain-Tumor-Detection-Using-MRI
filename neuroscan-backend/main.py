@@ -407,6 +407,13 @@ class AddUserRequest(BaseModel):
 #  ROUTES
 # ══════════════════════════════════════════════════════════════════════════════
 
+@app.on_event("startup")
+async def startup_event():
+    print("Pre-loading models...")
+    get_tflite()
+    get_feat_model()
+    print("Models loaded and ready!")
+
 @app.get("/")
 def root():
     return {"status": "NeuroScan AI API running", "version": "1.0.0"}
