@@ -139,6 +139,7 @@ export default function Scanner() {
       const res  = await fetch(`${API}/api/predict`, { method: 'POST',  headers: token ? { 'Authorization': `Bearer ${token}` } : {},body: fd })
       const data = await res.json()
       setResult({ ...data, mode: 'Single MRI' })
+      console.log('DICOM INFO:', data.dicom_info)
       fetchRecentScans(username, setRecentScans)
     } catch {
       setError('Failed to connect to AI backend. Please try again.')
