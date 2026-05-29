@@ -123,11 +123,13 @@ export default function Scanner() {
     if (!singleFile) return
     setLoading(true); setError(null); setResult(null)
     try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token || ''
       const fd = new FormData()
       fd.append('file', singleFile)
       fd.append('username', username)
       fd.append('gradcam', 'true')
-      const res  = await fetch(`${API}/api/predict`, { method: 'POST', body: fd })
+      const res  = await fetch(`${API}/api/predict`, { method: 'POST',  headers: token ? { 'Authorization': `Bearer ${token}` } : {},body: fd })
       const data = await res.json()
       setResult({ ...data, mode: 'Single MRI' })
       fetchRecentScans(username, setRecentScans)
@@ -141,12 +143,14 @@ export default function Scanner() {
     if (!t1 || !t1ce || !t2 || !flair) return
     setLoading(true); setError(null); setResult(null)
     try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token || ''
       const fd = new FormData()
       fd.append('t1', t1); fd.append('t1ce', t1ce)
       fd.append('t2', t2); fd.append('flair', flair)
       fd.append('username', username)
       fd.append('gradcam', 'true')
-      const res  = await fetch(`${API}/api/predict/fusion`, { method: 'POST', body: fd })
+      const res  = await fetch(`${API}/api/predict/fusion`, { method: 'POST',  headers: token ? { 'Authorization': `Bearer ${token}` } : {}, body: fd })
       const data = await res.json()
       setResult({ ...data, mode: 'Multi-Modal Fusion' })
       fetchRecentScans(username, setRecentScans)
