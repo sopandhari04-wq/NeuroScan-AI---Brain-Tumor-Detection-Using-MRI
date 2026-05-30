@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../App'
 
@@ -10,8 +10,7 @@ function RiskBadge({ scans }) {
   if (!scans.length) return <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.55rem', color: 'var(--text-3)' }}>No scans</span>
   const latest     = scans[0]
   const tumorScans = scans.filter(s => s.prediction !== 'notumor')
-  const tumorRate  = Math.round(tumorScans.length / scans.length * 100)
-
+  
   if (latest.prediction !== 'notumor' && latest.confidence > 0.85) {
     return <span style={{ background: 'rgba(255,87,87,0.12)', color: '#FF5757', border: '1px solid rgba(255,87,87,0.3)', borderRadius: '99px', padding: '0.15rem 0.55rem', fontFamily: 'var(--font-mono)', fontSize: '0.55rem' }}>🔴 High Risk</span>
   } else if (latest.prediction !== 'notumor') {
