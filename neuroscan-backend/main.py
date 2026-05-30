@@ -707,7 +707,7 @@ async def predict_single(
 
 
 
-    if confidence < 0.60:
+    if confidence < 0.70:
         return {
             "prediction":    "invalid",
             "display_name":  "Invalid Input",
