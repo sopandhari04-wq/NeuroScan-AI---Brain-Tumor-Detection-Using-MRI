@@ -94,6 +94,9 @@ export default function Scanner() {
   const [fusionPreviews, setFusionPreviews] = useState({ t1: null, t1ce: null, t2: null, flair: null })
   const [pdfLoading, setPdfLoading]         = useState(false)
   const [recentScans, setRecentScans]       = useState([])
+  const [chatMessages, setChatMessages] = useState([])
+  const [chatInput, setChatInput]       = useState('')
+  const [chatLoading, setChatLoading]   = useState(false)
   const [dicomFile, setDicomFile] = useState(false)
 
   useEffect(() => {
@@ -166,6 +169,43 @@ export default function Scanner() {
       setError('Failed to connect to AI backend. Please try again.')
     } finally { setLoading(false) }
   }
+  
+  async function sendChat() {
+  if (!chatInput.trim() || !result) return
+  const userMsg = chatInput.trim()
+  setChatInput('')
+  setChatMessages(prev => [...prev, { role: 'user', text: userMsg }])
+  setChatLoading(true)
+  try {
+    const scanContext = {
+      prediction:          result.prediction,
+      display_name:        result.display_name,
+      confidence:          result.confidence,
+      mode:                result.mode,
+      region:              result.gradcam?.region || '',
+      pattern:             result.gradcam?.pattern || '',
+      activation_intensity: result.gradcam?.activation_intensity || 0,
+      focus_area_pct:      result.gradcam?.focus_area_pct || 0,
+      et_pct:              result.gradcam?.subregions?.ET?.pct || 0,
+      tc_pct:              result.gradcam?.subregions?.TC?.pct || 0,
+      wt_pct:              result.gradcam?.subregions?.WT?.pct || 0,
+      est_volume_cm3:      result.gradcam?.radiomics?.est_volume_cm3 || 0,
+      sphericity:          result.gradcam?.radiomics?.sphericity || 0,
+      shape_desc:          result.gradcam?.radiomics?.shape_desc || '',
+    }
+    const res  = await fetch(`${API}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: userMsg, scan_context: scanContext })
+    })
+    const data = await res.json()
+    setChatMessages(prev => [...prev, { role: 'ai', text: data.answer }])
+  } catch {
+    setChatMessages(prev => [...prev, { role: 'ai', text: 'Failed to get response. Please try again.' }])
+  } finally {
+    setChatLoading(false)
+  }
+}
 
   async function downloadPDF() {
     setPdfLoading(true)
@@ -584,6 +624,65 @@ export default function Scanner() {
         )}
       </div>
         )}  
+        {/* AI Chat */}
+{result && result.prediction !== 'invalid' && (
+  <div style={{ marginTop: '1.5rem', border: '1px solid rgba(12,242,200,0.2)', borderRadius: '14px', background: 'rgba(12,242,200,0.03)', padding: '1.5rem', position: 'relative', overflow: 'hidden' }}>
+    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg,transparent,var(--teal),transparent)' }} />
+    <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-1)', marginBottom: '1rem' }}>
+      🤖 <span style={{ color: 'var(--teal)' }}>Ask AI About This Scan</span>
+    </div>
+
+    {/* Suggested questions */}
+    {chatMessages.length === 0 && (
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
+        {[
+          'What does this result mean?',
+          'How serious is this finding?',
+          'What should I do next?',
+          'What does the Grad-CAM show?',
+        ].map(q => (
+          <button key={q} onClick={() => { setChatInput(q) }} style={{ background: 'rgba(12,242,200,0.06)', border: '1px solid rgba(12,242,200,0.2)', borderRadius: '99px', color: 'var(--teal)', fontFamily: 'var(--font-mono)', fontSize: '0.6rem', padding: '0.3rem 0.8rem', cursor: 'pointer', letterSpacing: '0.05em' }}>
+            {q}
+          </button>
+        ))}
+      </div>
+    )}
+
+    {/* Messages */}
+    {chatMessages.length > 0 && (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem', maxHeight: 300, overflowY: 'auto' }}>
+        {chatMessages.map((m, i) => (
+          <div key={i} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
+            <div style={{ maxWidth: '80%', padding: '0.7rem 1rem', borderRadius: m.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px', background: m.role === 'user' ? 'rgba(12,242,200,0.12)' : 'rgba(255,255,255,0.04)', border: m.role === 'user' ? '1px solid rgba(12,242,200,0.25)' : '1px solid rgba(255,255,255,0.07)', fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: m.role === 'user' ? 'var(--teal)' : 'var(--text-2)', lineHeight: 1.7 }}>
+              {m.text}
+            </div>
+          </div>
+        ))}
+        {chatLoading && (
+          <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+            <div style={{ padding: '0.7rem 1rem', borderRadius: '12px 12px 12px 2px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--text-3)' }}>
+              Thinking…
+            </div>
+          </div>
+        )}
+      </div>
+    )}
+
+    {/* Input */}
+    <div style={{ display: 'flex', gap: '0.5rem' }}>
+      <input
+        value={chatInput}
+        onChange={e => setChatInput(e.target.value)}
+        onKeyDown={e => e.key === 'Enter' && sendChat()}
+        placeholder="Ask about this scan…"
+        style={{ flex: 1, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(12,242,200,0.2)', borderRadius: '8px', color: 'var(--text-1)', fontFamily: 'var(--font-mono)', fontSize: '0.72rem', padding: '0.55rem 0.9rem', outline: 'none' }}
+      />
+      <button onClick={sendChat} disabled={chatLoading || !chatInput.trim()} style={{ background: chatLoading || !chatInput.trim() ? 'rgba(12,242,200,0.1)' : 'linear-gradient(135deg,#00C8B4,#0097A7)', border: 'none', borderRadius: '8px', color: chatLoading || !chatInput.trim() ? 'var(--text-3)' : '#000', fontFamily: 'var(--font-mono)', fontSize: '0.72rem', fontWeight: 700, padding: '0.55rem 1.2rem', cursor: chatLoading || !chatInput.trim() ? 'not-allowed' : 'pointer' }}>
+        {chatLoading ? '…' : 'Ask →'}
+      </button>
+    </div>
+  </div>
+)}
 
         {recentScans.length > 0 && (
           <div style={{ marginTop: '3rem' }}>
