@@ -26,6 +26,8 @@ from fastapi import Request
 import jwt
 import pydicom
 import pydicom._storage_sopclass_uids
+import httpx
+
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -501,6 +503,67 @@ async def startup_event():
     get_tflite()
     get_feat_model()
     print("Models loaded and ready!")
+
+@app.post("/api/chat")
+async def chat(request: Request):
+    try:
+        body = await request.json()
+        question    = body.get("question", "")
+        scan_context = body.get("scan_context", {})
+
+        groq_api_key = os.environ.get("GROQ_API_KEY", "")
+        if not groq_api_key:
+            raise HTTPException(status_code=500, detail="Groq API key not set")
+
+        # Build system prompt with scan context
+        system_prompt = f"""You are a clinical AI assistant for NeuroScan AI, a brain MRI analysis platform.
+You help doctors and patients understand their MRI scan results.
+
+Current scan context:
+- Prediction: {scan_context.get('prediction', 'Unknown')}
+- Display Name: {scan_context.get('display_name', 'Unknown')}
+- Confidence: {scan_context.get('confidence', 0) * 100:.0f}%
+- Scan Mode: {scan_context.get('mode', 'Single MRI')}
+- Primary Region: {scan_context.get('region', 'Unknown')}
+- Attention Pattern: {scan_context.get('pattern', 'Unknown')}
+- Activation Intensity: {scan_context.get('activation_intensity', 0)}%
+- Tumor Coverage: {scan_context.get('focus_area_pct', 0)}%
+- Sub-regions: ET={scan_context.get('et_pct', 0)}%, TC={scan_context.get('tc_pct', 0)}%, WT={scan_context.get('wt_pct', 0)}%
+- Est. Volume: {scan_context.get('est_volume_cm3', 0)} cm³
+- Sphericity: {scan_context.get('sphericity', 0)}
+- Shape: {scan_context.get('shape_desc', 'Unknown')}
+
+Rules:
+1. Answer clearly and concisely in 2-4 sentences
+2. Always remind the user to consult a qualified medical professional
+3. Never make definitive clinical diagnoses
+4. Be empathetic and professional
+5. If asked something unrelated to brain MRI or this scan, politely redirect"""
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {groq_api_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "llama-3.3-70b-versatile",
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user",   "content": question}
+                    ],
+                    "max_tokens": 300,
+                    "temperature": 0.7,
+                },
+                timeout=30.0
+            )
+            data = response.json()
+            answer = data["choices"][0]["message"]["content"]
+            return {"answer": answer}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/")
 def root():
