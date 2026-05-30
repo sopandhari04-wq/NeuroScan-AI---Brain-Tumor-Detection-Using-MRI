@@ -46,6 +46,11 @@ export default function AdminDashboard() {
     setLoading(false)
   }
 
+  async function assignDoctor(patientUsername, doctorUsername) {
+    await supabase.from('users').update({ doctor_username: doctorUsername || null }).eq('username', patientUsername)
+    fetchAll()
+  } 
+
   async function handleAddUser() {
     if (!newUser.username || !newUser.password || !newUser.name) { setAddMsg('Fill all fields.'); return }
     const { error } = await supabase.from('users').insert([{ ...newUser, created: new Date().toISOString().split('T')[0] }])
@@ -182,6 +187,18 @@ export default function AdminDashboard() {
           )
         })}
       </div>
+      {u.role === 'patient' && (
+  <select
+    value={u.doctor_username || ''}
+    onChange={e => assignDoctor(u.username, e.target.value)}
+    style={{ ...inputStyle, width: 'auto', fontSize: '0.62rem', padding: '0.25rem 0.5rem', marginLeft: '0.5rem', cursor: 'pointer' }}
+  >
+    <option value=''>Assign Doctor</option>
+    {users.filter(d => d.role === 'doctor').map(d => (
+      <option key={d.username} value={d.username}>{d.name}</option>
+    ))}
+  </select>
+)}
 
       <div style={{ height: 1, background: 'linear-gradient(90deg,transparent,rgba(12,242,200,0.12),transparent)', margin: '1.5rem 0' }} />
 
