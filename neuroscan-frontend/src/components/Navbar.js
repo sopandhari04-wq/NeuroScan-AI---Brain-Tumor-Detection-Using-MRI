@@ -24,6 +24,7 @@ const authLinks = user
         { to: '/compare', label: 'Compare' },
         { to: '/statistics', label: 'Statistics' },
         { to: '/timeline', label: 'Timeline' },
+        { to: '/chat', label: 'AI Chat' },
       ]
     : []
 

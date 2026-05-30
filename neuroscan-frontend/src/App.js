@@ -13,6 +13,7 @@ import Scanner from './pages/Scanner'
 import ScanComparison from './pages/ScanComparison'
 import Statistics from './pages/Statistics'
 import PatientTimeline from './pages/PatientTimeline'
+import ChatPage from './pages/ChatPage'
 
 export const AuthContext = createContext(null)
 export const useAuth = () => useContext(AuthContext)
@@ -137,6 +138,7 @@ export default function App() {
 
         {/* Patient Timeline — longitudinal tracking */}
         <Route path="/timeline" element={<ProtectedRoute><PatientTimeline /></ProtectedRoute>} />
+        <Route path="/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
 
         <Route path="*"          element={<Navigate to="/" replace />} />
       </Routes>
