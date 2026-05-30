@@ -705,9 +705,14 @@ async def predict_single(
     predicted_cls = CLASS_NAMES[predicted_idx]
     confidence    = float(probs[predicted_idx])
 
+    # Check if image has brain-like characteristics
+    img_array = np.array(pil_img.convert('L'))  # grayscale
+    mean_brightness = float(img_array.mean())
+    std_brightness  = float(img_array.std())
 
-
-    if confidence < 0.50:
+    # Brain MRIs are typically dark background with mid-range contrast
+    # Certificates/random images tend to be very bright or very uniform
+    if mean_brightness > 200 or std_brightness < 15:
         return {
             "prediction":    "invalid",
             "display_name":  "Invalid Input",
@@ -719,6 +724,7 @@ async def predict_single(
             "overlay_image": None,
             "error":         "This image does not appear to be a valid MRI scan. Please upload a proper brain MRI."
         }
+
 
     add_scan_record(username, predicted_cls, confidence, "Single MRI")
 
@@ -805,7 +811,14 @@ async def predict_fusion(
     predicted_cls = CLASS_NAMES[predicted_idx]
     confidence    = float(probs[predicted_idx])
 
-    if confidence < 0.50:
+    # Check if image has brain-like characteristics
+    img_array = np.array(pil_img.convert('L'))  # grayscale
+    mean_brightness = float(img_array.mean())
+    std_brightness  = float(img_array.std())
+
+    # Brain MRIs are typically dark background with mid-range contrast
+    # Certificates/random images tend to be very bright or very uniform
+    if mean_brightness > 200 or std_brightness < 15:
         return {
             "prediction":    "invalid",
             "display_name":  "Invalid Input",
@@ -815,7 +828,6 @@ async def predict_fusion(
             "tumor_info":    None,
             "gradcam":       None,
             "overlay_image": None,
-            "dicom_info":    dicom_info,
             "error":         "This image does not appear to be a valid MRI scan. Please upload a proper brain MRI."
         }
 
