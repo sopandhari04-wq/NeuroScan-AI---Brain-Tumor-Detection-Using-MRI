@@ -22,6 +22,7 @@ export default function Navbar() {
         { to: '/patient', label: 'Dashboard' },
         { to: '/scanner', label: 'Scanner' },
         { to: '/compare', label: 'Compare' },
+        ...(role === 'doctor' ? [{ to: '/my-patients', label: 'My Patients' }] : []),
         { to: '/timeline', label: 'Timeline' },
         { to: '/statistics', label: 'Statistics' },
         { to: '/chat', label: 'AI Chat' },
