@@ -15,15 +15,15 @@ export default function Navbar() {
   ]
  const { role } = useAuth()
 
-const authLinks = user
+ const authLinks = user
     ? [
         role === 'admin' ? { to: '/admin', label: 'Dashboard' } :
         role === 'doctor' ? { to: '/dashboard', label: 'Dashboard' } :
         { to: '/patient', label: 'Dashboard' },
         { to: '/scanner', label: 'Scanner' },
         { to: '/compare', label: 'Compare' },
-        { to: '/statistics', label: 'Statistics' },
         { to: '/timeline', label: 'Timeline' },
+        { to: '/statistics', label: 'Statistics' },
         { to: '/chat', label: 'AI Chat' },
       ]
     : []
