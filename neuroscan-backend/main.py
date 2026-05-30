@@ -72,6 +72,34 @@ def get_tflite():
         _tflite_interpreter = interpreter
     return _tflite_interpreter
 
+_mri_validator = None
+
+def get_mri_validator():
+    global _mri_validator
+    if _mri_validator is None:
+        interpreter = tf.lite.Interpreter(model_path="models/mri_validator.tflite")
+        interpreter.allocate_tensors()
+        _mri_validator = interpreter
+    return _mri_validator
+
+def is_valid_mri(pil_img: Image.Image) -> bool:
+    """Returns True if image is a valid MRI scan"""
+    img_resized = pil_img.resize((128, 128))
+    arr = keras_image.img_to_array(img_resized)
+    arr = np.expand_dims(arr, axis=0) / 255.0
+    
+    validator = get_mri_validator()
+    inp = validator.get_input_details()[0]
+    out = validator.get_output_details()[0]
+    validator.set_tensor(inp['index'], arr.astype('float32'))
+    validator.invoke()
+    score = float(validator.get_tensor(out['index'])[0][0])
+    
+    # score close to 1.0 = MRI, close to 0.0 = not MRI
+    print(f"MRI validator score: {score:.3f}")
+    return score > 0.5
+
+
 def get_feat_model():
     global _keras_feat_model
     if _keras_feat_model is None:
@@ -502,6 +530,7 @@ async def startup_event():
     print("Pre-loading models...")
     get_tflite()
     get_feat_model()
+    get_mri_validator()
     print("Models loaded and ready!")
 
 @app.post("/api/chat")
@@ -694,9 +723,39 @@ async def predict_single(
     contents   = await file.read()
     dicom_info = None
     if file.filename and file.filename.lower().endswith('.dcm'):
-        pil_img, dicom_info = load_dicom(contents)
+        try:
+            pil_img, dicom_info = load_dicom(contents)
+        except ValueError as e:
+            return {
+                "prediction":    "invalid",
+                "display_name":  "Invalid Input",
+                "confidence":    0,
+                "color":         "#888888",
+                "probabilities": {CLASS_NAMES[i]: 0.0 for i in range(len(CLASS_NAMES))},
+                "tumor_info":    None,
+                "gradcam":       None,
+                "overlay_image": None,
+                "dicom_info":    None,
+                "error":         str(e)
+            }
     else:
         pil_img = pil_from_upload(contents)
+
+    # Validate using MRI classifier
+    if not is_valid_mri(pil_img):
+        return {
+            "prediction":    "invalid",
+            "display_name":  "Invalid Input",
+            "confidence":    0,
+            "color":         "#888888",
+            "probabilities": {CLASS_NAMES[i]: 0.0 for i in range(len(CLASS_NAMES))},
+            "tumor_info":    None,
+            "gradcam":       None,
+            "overlay_image": None,
+            "dicom_info":    dicom_info,
+            "error":         "This image does not appear to be a valid MRI scan. Please upload a proper brain MRI."
+        }
+
     arr = preprocess(pil_img)
 
     interpreter   = get_tflite()
@@ -704,27 +763,6 @@ async def predict_single(
     predicted_idx = int(np.argmax(probs))
     predicted_cls = CLASS_NAMES[predicted_idx]
     confidence    = float(probs[predicted_idx])
-
-    # Check if image has brain-like characteristics
-    img_array = np.array(pil_img.convert('L'))  # grayscale
-    mean_brightness = float(img_array.mean())
-    std_brightness  = float(img_array.std())
-
-    # Brain MRIs are typically dark background with mid-range contrast
-    # Certificates/random images tend to be very bright or very uniform
-    if mean_brightness > 200 or std_brightness < 15:
-        return {
-            "prediction":    "invalid",
-            "display_name":  "Invalid Input",
-            "confidence":    confidence,
-            "color":         "#888888",
-            "probabilities": {CLASS_NAMES[i]: float(probs[i]) for i in range(len(CLASS_NAMES))},
-            "tumor_info":    None,
-            "gradcam":       None,
-            "overlay_image": None,
-            "error":         "This image does not appear to be a valid MRI scan. Please upload a proper brain MRI."
-        }
-
 
     add_scan_record(username, predicted_cls, confidence, "Single MRI")
 
@@ -787,14 +825,43 @@ async def predict_fusion(
     print(f"Fusion predict called with username: {username}")
 
     imgs = []
-    for f in [t1, t1ce, t2, flair]:
-        contents = await f.read()
-        if f.filename and f.filename.lower().endswith('.dcm'):
+for f in [t1, t1ce, t2, flair]:
+    contents = await f.read()
+    if f.filename and f.filename.lower().endswith('.dcm'):
+        try:
             pil_img, _ = load_dicom(contents)
-        else:
-            pil_img = Image.open(BytesIO(contents)).convert("RGB")
-        imgs.append(pil_img)
-    dicom_info = None
+        except ValueError as e:
+            return {
+                "prediction":    "invalid",
+                "display_name":  "Invalid Input",
+                "confidence":    0,
+                "color":         "#888888",
+                "probabilities": {CLASS_NAMES[i]: 0.0 for i in range(len(CLASS_NAMES))},
+                "tumor_info":    None,
+                "gradcam":       None,
+                "overlay_image": None,
+                "dicom_info":    None,
+                "error":         str(e)
+            }
+    else:
+        pil_img = Image.open(BytesIO(contents)).convert("RGB")
+    imgs.append(pil_img)
+dicom_info = None
+
+# Validate first image using MRI classifier
+if not is_valid_mri(imgs[0]):
+    return {
+        "prediction":    "invalid",
+        "display_name":  "Invalid Input",
+        "confidence":    0,
+        "color":         "#888888",
+        "probabilities": {CLASS_NAMES[i]: 0.0 for i in range(len(CLASS_NAMES))},
+        "tumor_info":    None,
+        "gradcam":       None,
+        "overlay_image": None,
+        "dicom_info":    None,
+        "error":         "This image does not appear to be a valid MRI scan. Please upload a proper brain MRI."
+    }
 
     gray_arrays = [np.array(p.convert("L").resize((128,128)), dtype=np.float32)/255.0 for p in imgs]
     fused_4ch   = np.stack(gray_arrays, axis=-1)
@@ -811,25 +878,7 @@ async def predict_fusion(
     predicted_cls = CLASS_NAMES[predicted_idx]
     confidence    = float(probs[predicted_idx])
 
-    # Check if image has brain-like characteristics
-    img_array = np.array(pil_img.convert('L'))  # grayscale
-    mean_brightness = float(img_array.mean())
-    std_brightness  = float(img_array.std())
-
-    # Brain MRIs are typically dark background with mid-range contrast
-    # Certificates/random images tend to be very bright or very uniform
-    if mean_brightness > 200 or std_brightness < 15:
-        return {
-            "prediction":    "invalid",
-            "display_name":  "Invalid Input",
-            "confidence":    confidence,
-            "color":         "#888888",
-            "probabilities": {CLASS_NAMES[i]: float(probs[i]) for i in range(len(CLASS_NAMES))},
-            "tumor_info":    None,
-            "gradcam":       None,
-            "overlay_image": None,
-            "error":         "This image does not appear to be a valid MRI scan. Please upload a proper brain MRI."
-        }
+    
 
     add_scan_record(username, predicted_cls, confidence, "Multi-Modal Fusion")
 
