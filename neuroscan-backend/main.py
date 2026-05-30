@@ -848,64 +848,64 @@ async def predict_fusion(
         imgs.append(pil_img)
     dicom_info = None
 
-# Validate first image using MRI classifier
-if not is_valid_mri(imgs[0]):
+    # Validate first image using MRI classifier
+    if not is_valid_mri(imgs[0]):
+        return {
+            "prediction":    "invalid",
+            "display_name":  "Invalid Input",
+            "confidence":    0,
+            "color":         "#888888",
+            "probabilities": {CLASS_NAMES[i]: 0.0 for i in range(len(CLASS_NAMES))},
+            "tumor_info":    None,
+            "gradcam":       None,
+            "overlay_image": None,
+            "dicom_info":    None,
+            "error":         "This image does not appear to be a valid MRI scan. Please upload a proper brain MRI."
+        }
+
+    gray_arrays = [np.array(p.convert("L").resize((128,128)), dtype=np.float32)/255.0 for p in imgs]
+    fused_4ch   = np.stack(gray_arrays, axis=-1)
+    r = fused_4ch[:,:,0]*0.5 + fused_4ch[:,:,1]*0.5
+    g = fused_4ch[:,:,1]*0.5 + fused_4ch[:,:,2]*0.5
+    b = fused_4ch[:,:,2]*0.5 + fused_4ch[:,:,3]*0.5
+    fused_rgb   = np.stack([r, g, b], axis=-1)
+    fused_input = np.expand_dims(fused_rgb, axis=0)
+    fused_pil   = Image.fromarray(np.uint8(fused_rgb * 255))
+
+    interpreter   = get_tflite()
+    probs         = predict_tflite(interpreter, fused_input)
+    predicted_idx = int(np.argmax(probs))
+    predicted_cls = CLASS_NAMES[predicted_idx]
+    confidence    = float(probs[predicted_idx])
+
+    add_scan_record(username, predicted_cls, confidence, "Multi-Modal Fusion")
+
+    cam_data    = None
+    overlay_b64 = None
+
+    if gradcam:
+        try:
+            feat_model  = get_feat_model()
+            cam         = compute_gradcam(feat_model, fused_input)
+            cam_data    = analyze_gradcam(cam, predicted_cls, confidence)
+            overlay_img = overlay_gradcam(fused_pil, cam)
+            buf = BytesIO()
+            overlay_img.save(buf, format="PNG")
+            import base64
+            overlay_b64 = base64.b64encode(buf.getvalue()).decode()
+        except Exception as e:
+            print(f"Grad-CAM error: {e}")
+
     return {
-        "prediction":    "invalid",
-        "display_name":  "Invalid Input",
-        "confidence":    0,
-        "color":         "#888888",
-        "probabilities": {CLASS_NAMES[i]: 0.0 for i in range(len(CLASS_NAMES))},
-        "tumor_info":    None,
-        "gradcam":       None,
-        "overlay_image": None,
-        "dicom_info":    None,
-        "error":         "This image does not appear to be a valid MRI scan. Please upload a proper brain MRI."
+        "prediction":    predicted_cls,
+        "display_name":  CLASS_DISPLAY[predicted_cls],
+        "confidence":    confidence,
+        "color":         CLASS_COLORS[predicted_cls],
+        "probabilities": {CLASS_NAMES[i]: float(probs[i]) for i in range(len(CLASS_NAMES))},
+        "tumor_info":    TUMOR_DB[predicted_cls],
+        "gradcam":       cam_data,
+        "overlay_image": overlay_b64,
     }
-
-gray_arrays = [np.array(p.convert("L").resize((128,128)), dtype=np.float32)/255.0 for p in imgs]
-fused_4ch   = np.stack(gray_arrays, axis=-1)
-r = fused_4ch[:,:,0]*0.5 + fused_4ch[:,:,1]*0.5
-g = fused_4ch[:,:,1]*0.5 + fused_4ch[:,:,2]*0.5
-b = fused_4ch[:,:,2]*0.5 + fused_4ch[:,:,3]*0.5
-fused_rgb   = np.stack([r, g, b], axis=-1)
-fused_input = np.expand_dims(fused_rgb, axis=0)
-fused_pil   = Image.fromarray(np.uint8(fused_rgb * 255))
-
-interpreter   = get_tflite()
-probs         = predict_tflite(interpreter, fused_input)
-predicted_idx = int(np.argmax(probs))
-predicted_cls = CLASS_NAMES[predicted_idx]
-confidence    = float(probs[predicted_idx])
-
-add_scan_record(username, predicted_cls, confidence, "Multi-Modal Fusion")
-
-cam_data    = None
-overlay_b64 = None
-
-if gradcam:
-    try:
-        feat_model  = get_feat_model()
-        cam         = compute_gradcam(feat_model, fused_input)
-        cam_data    = analyze_gradcam(cam, predicted_cls, confidence)
-        overlay_img = overlay_gradcam(fused_pil, cam)
-        buf = BytesIO()
-        overlay_img.save(buf, format="PNG")
-        import base64
-        overlay_b64 = base64.b64encode(buf.getvalue()).decode()
-    except Exception as e:
-        print(f"Grad-CAM error: {e}")
-
-return {
-    "prediction":    predicted_cls,
-    "display_name":  CLASS_DISPLAY[predicted_cls],
-    "confidence":    confidence,
-    "color":         CLASS_COLORS[predicted_cls],
-    "probabilities": {CLASS_NAMES[i]: float(probs[i]) for i in range(len(CLASS_NAMES))},
-    "tumor_info":    TUMOR_DB[predicted_cls],
-    "gradcam":       cam_data,
-    "overlay_image": overlay_b64,
-}
 
 # ── PDF Report ─────────────────────────────────────────────────────────────────
 @app.post("/api/report")
