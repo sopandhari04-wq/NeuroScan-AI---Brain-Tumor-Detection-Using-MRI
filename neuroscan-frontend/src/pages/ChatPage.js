@@ -24,7 +24,7 @@ const SUGGESTED_QUESTIONS = [
 ]
 
 export default function ChatPage() {
-  const { username, user_name, role } = useAuth()
+  const { username, user_name, } = useAuth()
   const [messages, setMessages]       = useState([])
   const [input, setInput]             = useState('')
   const [loading, setLoading]         = useState(false)
