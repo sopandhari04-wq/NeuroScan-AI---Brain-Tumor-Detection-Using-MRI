@@ -187,18 +187,36 @@ export default function AdminDashboard() {
           )
         })}
       </div>
-      {u.role === 'patient' && (
-  <select
-    value={u.doctor_username || ''}
-    onChange={e => assignDoctor(u.username, e.target.value)}
-    style={{ ...inputStyle, width: 'auto', fontSize: '0.62rem', padding: '0.25rem 0.5rem', marginLeft: '0.5rem', cursor: 'pointer' }}
-  >
-    <option value=''>Assign Doctor</option>
-    {users.filter(d => d.role === 'doctor').map(d => (
-      <option key={d.username} value={d.username}>{d.name}</option>
-    ))}
-  </select>
-)}
+      {users.map((u) => (
+  <div key={u.username}>
+    {/* User details */}
+
+    {u.role === 'patient' && (
+      <select
+        value={u.doctor_username || ''}
+        onChange={(e) => assignDoctor(u.username, e.target.value)}
+        style={{
+          ...inputStyle,
+          width: 'auto',
+          fontSize: '0.62rem',
+          padding: '0.25rem 0.5rem',
+          marginLeft: '0.5rem',
+          cursor: 'pointer'
+        }}
+      >
+        <option value="">Assign Doctor</option>
+
+        {users
+          .filter((d) => d.role === 'doctor')
+          .map((d) => (
+            <option key={d.username} value={d.username}>
+              {d.name}
+            </option>
+          ))}
+      </select>
+    )}
+  </div>
+))}
 
       <div style={{ height: 1, background: 'linear-gradient(90deg,transparent,rgba(12,242,200,0.12),transparent)', margin: '1.5rem 0' }} />
 
