@@ -707,7 +707,7 @@ async def predict_single(
 
 
 
-    if confidence < 0.60:
+    if confidence < 0.50:
         return {
             "prediction":    "invalid",
             "display_name":  "Invalid Input",
@@ -805,7 +805,7 @@ async def predict_fusion(
     predicted_cls = CLASS_NAMES[predicted_idx]
     confidence    = float(probs[predicted_idx])
 
-    if confidence < 0.60:
+    if confidence < 0.50:
         return {
             "prediction":    "invalid",
             "display_name":  "Invalid Input",
