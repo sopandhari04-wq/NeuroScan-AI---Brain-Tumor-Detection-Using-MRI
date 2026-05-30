@@ -174,7 +174,7 @@ export default function AdminDashboard() {
       <div style={{ marginBottom: '2rem' }}>
         <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.58rem', letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '0.85rem' }}>All Users</div>
         {users.map(u => {
-          const rc = u.role === 'admin' ? '#FFB347' : '#00C8B4'
+          const rc = u.role === 'admin' ? '#FFB347' : u.role === 'doctor' ? '#7B82F5' : '#00C8B4'
           const userScans = scans.filter(s => s.username === u.username)
           const lastScan  = userScans[0]
           return (
@@ -183,40 +183,22 @@ export default function AdminDashboard() {
               <div style={{ color: 'var(--text-3)', minWidth: 120 }}>@{u.username}</div>
               <span style={{ background: `${rc}22`, color: rc, fontSize: '0.58rem', letterSpacing: '0.15em', padding: '0.2rem 0.6rem', borderRadius: '99px', border: `1px solid ${rc}55`, textTransform: 'uppercase' }}>{u.role}</span>
               <div style={{ color: 'var(--text-3)', marginLeft: 'auto' }}>📋 {userScans.length} scans{lastScan ? ` · Last: ${new Date(lastScan.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })}` : ' · No scans yet'}</div>
+              {u.role === 'patient' && (
+                <select
+                  value={u.doctor_username || ''}
+                  onChange={e => assignDoctor(u.username, e.target.value)}
+                  style={{ ...inputStyle, width: 'auto', fontSize: '0.62rem', padding: '0.25rem 0.5rem', cursor: 'pointer' }}
+                >
+                  <option value=''>Assign Doctor</option>
+                  {users.filter(d => d.role === 'doctor').map(d => (
+                    <option key={d.username} value={d.username}>{d.name}</option>
+                  ))}
+                </select>
+              )}
             </div>
           )
         })}
       </div>
-      {users.map((u) => (
-  <div key={u.username}>
-    {/* User details */}
-
-    {u.role === 'patient' && (
-      <select
-        value={u.doctor_username || ''}
-        onChange={(e) => assignDoctor(u.username, e.target.value)}
-        style={{
-          ...inputStyle,
-          width: 'auto',
-          fontSize: '0.62rem',
-          padding: '0.25rem 0.5rem',
-          marginLeft: '0.5rem',
-          cursor: 'pointer'
-        }}
-      >
-        <option value="">Assign Doctor</option>
-
-        {users
-          .filter((d) => d.role === 'doctor')
-          .map((d) => (
-            <option key={d.username} value={d.username}>
-              {d.name}
-            </option>
-          ))}
-      </select>
-    )}
-  </div>
-))}
 
       <div style={{ height: 1, background: 'linear-gradient(90deg,transparent,rgba(12,242,200,0.12),transparent)', margin: '1.5rem 0' }} />
 
