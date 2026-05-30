@@ -239,7 +239,8 @@ def analyze_gradcam(cam, predicted_cls, confidence):
         est_area_cm2    = round(tumor_pixels / (128 * 128) * (20 * 20), 1)
         # Estimated volume in cm³ (assume roughly spherical slice)
         import math
-        est_volume_cm3  = round((4/3) * math.pi * (est_diameter_cm/2)**3 / 2, 1)
+        # More accurate: volume from area assuming circular cross-section
+        est_volume_cm3  = round(est_area_cm2 * est_diameter_cm * 0.5, 2)
     else:
         sphericity       = 0.0
         bbox_h           = 0
