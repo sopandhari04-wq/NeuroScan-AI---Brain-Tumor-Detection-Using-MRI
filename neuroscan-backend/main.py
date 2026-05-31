@@ -83,7 +83,21 @@ def get_mri_validator():
     return _mri_validator
 
 def is_valid_mri(pil_img: Image.Image) -> bool:
-    """Returns True if image is a valid MRI scan"""
+    """Check if image has MRI-like characteristics"""
+    # Convert to grayscale for analysis
+    gray = np.array(pil_img.convert('L'), dtype=np.float32)
+    
+    # MRI characteristics:
+    # 1. Mostly dark background (>40% of pixels are dark)
+    dark_pixels = float(np.mean(gray < 50))
+    
+    # 2. High contrast (std deviation should be significant)
+    std_dev = float(gray.std())
+    
+    # 3. Not uniformly bright (mean should not be too high)
+    mean_val = float(gray.mean())
+    
+    # 4. Check using validator model
     img_resized = pil_img.resize((128, 128))
     arr = keras_image.img_to_array(img_resized)
     arr = np.expand_dims(arr, axis=0) / 255.0
@@ -95,9 +109,20 @@ def is_valid_mri(pil_img: Image.Image) -> bool:
     validator.invoke()
     score = float(validator.get_tensor(out['index'])[0][0])
     
-    # score close to 1.0 = MRI, close to 0.0 = not MRI
-    print(f"MRI validator score: {score:.3f}")
-    return score > 0.5
+    print(f"MRI validator — score: {score:.3f}, dark: {dark_pixels:.2f}, std: {std_dev:.1f}, mean: {mean_val:.1f}")
+    
+    # Reject if:
+    # - Too bright (documents, certificates, screenshots)
+    # - Too uniform (solid colors)
+    # - Validator says not MRI AND image is bright
+    if mean_val > 180 and dark_pixels < 0.1:
+        return False
+    if std_dev < 20:
+        return False
+    if score < 0.3 and mean_val > 150:
+        return False
+        
+    return True
 
 
 def get_feat_model():
