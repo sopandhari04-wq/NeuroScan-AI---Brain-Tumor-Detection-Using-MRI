@@ -115,11 +115,11 @@ def is_valid_mri(pil_img: Image.Image) -> bool:
     # - Too bright (documents, certificates, screenshots)
     # - Too uniform (solid colors)
     # - Validator says not MRI AND image is bright
-    if mean_val > 180 and dark_pixels < 0.1:
+    if mean_val > 140 and dark_pixels < 0.05:
         return False
     if std_dev < 20:
         return False
-    if score < 0.3 and mean_val > 150:
+    if score < 0.3 and mean_val > 120:
         return False
         
     return True
