@@ -440,7 +440,7 @@ export default function Scanner() {
             </div>
             
             {/* Preprocessing Pipeline */}
-{result.preprocessing && (
+            {result.preprocessing && (
   <div style={{ marginBottom: '1.5rem' }}>
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.8rem' }}>
       <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', letterSpacing: '0.25em', textTransform: 'uppercase', color: 'var(--text-3)' }}>
