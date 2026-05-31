@@ -491,7 +491,13 @@ export default function Scanner() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div>
                     <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '0.4rem' }}>Original MRI</div>
-                    {(activeTab === 'single' ? singlePreview : fusionPreviews.t1) && <img src={activeTab === 'single' ? singlePreview : fusionPreviews.t1} alt="Original" style={{ width: '100%', borderRadius: 8, border: '1px solid var(--border)' }} />}
+                   {(activeTab === 'single' ? (singlePreview || result.preprocessing?.raw) : fusionPreviews.t1) && 
+  <img 
+    src={activeTab === 'single' ? (singlePreview ? singlePreview : `data:image/png;base64,${result.preprocessing.raw}`) : fusionPreviews.t1} 
+    alt="Original" 
+    style={{ width: '100%', borderRadius: 8, border: '1px solid var(--border)' }} 
+  />
+}
                   </div>
                   <div>
                     <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '0.4rem' }}>Grad-CAM Overlay</div>
