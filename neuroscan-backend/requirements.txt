@@ -1,11 +1,11 @@
 fastapi==0.115.0
 uvicorn==0.30.0
 python-multipart==0.0.9
-tensorflow==2.16.1
-numpy==1.26.4
+tensorflow==2.21.0
+numpy==2.0.0
 pillow==10.3.0
 matplotlib==3.9.0
-opencv-python-headless==4.9.0.80
+opencv-python-headless==4.10.0.84
 reportlab==4.2.0
 supabase==2.15.0
 python-dotenv==1.0.1
