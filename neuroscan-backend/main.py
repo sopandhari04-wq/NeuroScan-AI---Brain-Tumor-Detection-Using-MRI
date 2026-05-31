@@ -231,6 +231,58 @@ def overlay_gradcam(pil_img, cam):
     overlay = Image.fromarray((0.45 * hmap + 0.55 * orig).astype(np.uint8))
     return overlay
 
+def generate_preprocessing_pipeline(pil_img: Image.Image) -> dict:
+    """Generate 4-step preprocessing pipeline images as base64"""
+    import base64
+    import cv2
+
+    # Convert to numpy grayscale
+    gray = np.array(pil_img.convert('L'), dtype=np.float32)
+
+    def to_b64(arr):
+        arr_uint8 = np.clip(arr, 0, 255).astype('uint8')
+        pil = Image.fromarray(arr_uint8).convert('RGB')
+        buf = BytesIO()
+        pil.save(buf, format='PNG')
+        return base64.b64encode(buf.getvalue()).decode()
+
+    # Step 1 — Raw
+    raw = gray.copy()
+
+    # Step 2 — Normalized (min-max to 0-255)
+    normalized = (gray - gray.min()) / (gray.max() - gray.min() + 1e-8) * 255
+
+    # Step 3 — Skull stripped (threshold + largest connected component)
+    blurred     = cv2.GaussianBlur(normalized.astype('uint8'), (5, 5), 0)
+    _, thresh   = cv2.threshold(blurred, 10, 255, cv2.THRESH_BINARY)
+    kernel      = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (10, 10))
+    closed      = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
+    opened      = cv2.morphologyEx(closed, cv2.MORPH_OPEN, kernel)
+    # Find largest contour (brain region)
+    contours, _ = cv2.findContours(opened.astype('uint8'), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    mask        = np.zeros_like(opened)
+    if contours:
+        largest = max(contours, key=cv2.contourArea)
+        cv2.drawContours(mask, [largest], -1, 255, -1)
+    skull_stripped = normalized * (mask / 255.0)
+
+    # Step 4 — CLAHE Enhanced
+    clahe    = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    enhanced = clahe.apply(skull_stripped.astype('uint8'))
+
+    return {
+        "raw":           to_b64(raw),
+        "normalized":    to_b64(normalized),
+        "skull_stripped": to_b64(skull_stripped),
+        "enhanced":      to_b64(enhanced),
+        "labels": {
+            "raw":           "Raw DICOM",
+            "normalized":    "Normalized",
+            "skull_stripped": "Skull Stripped",
+            "enhanced":      "CLAHE Enhanced",
+        }
+    }
+
 
 def analyze_gradcam(cam, predicted_cls, confidence):
     h, w = cam.shape
@@ -804,6 +856,15 @@ async def predict_single(
 
     cam_data    = None
     overlay_b64 = None
+    preprocessing = None
+
+    # Generate preprocessing pipeline for DICOM files
+    if dicom_info:
+        try:
+            preprocessing = generate_preprocessing_pipeline(pil_img)
+        except Exception as e:
+            print(f"Preprocessing pipeline error: {e}")
+
 
     if gradcam:
         try:
@@ -828,6 +889,8 @@ async def predict_single(
         "gradcam":       cam_data,
         "overlay_image": overlay_b64,
         "dicom_info":    dicom_info,
+        "preprocessing": preprocessing,
+
     }
 
 
@@ -905,6 +968,14 @@ async def predict_fusion(
 
     cam_data    = None
     overlay_b64 = None
+    preprocessing = None
+
+    # Generate preprocessing pipeline for DICOM files
+    if dicom_info:
+        try:
+            preprocessing = generate_preprocessing_pipeline(pil_img)
+        except Exception as e:
+            print(f"Preprocessing pipeline error: {e}")
 
     if gradcam:
         try:
@@ -928,6 +999,7 @@ async def predict_fusion(
         "tumor_info":    TUMOR_DB[predicted_cls],
         "gradcam":       cam_data,
         "overlay_image": overlay_b64,
+        "preprocessing": preprocessing,
     }
 
 # ── PDF Report ─────────────────────────────────────────────────────────────────
