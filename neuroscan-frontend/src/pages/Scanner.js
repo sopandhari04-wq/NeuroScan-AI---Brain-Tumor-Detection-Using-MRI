@@ -322,12 +322,12 @@ export default function Scanner() {
         {activeTab === 'single' && (
           <div>
             <label style={{ display: 'block', border: '1px dashed rgba(0,200,180,0.25)', borderRadius: '12px', padding: '2rem', textAlign: 'center', cursor: 'pointer', background: 'rgba(0,200,180,0.02)', marginBottom: '1rem' }}>
-              <input type="file" accept=".jpg,.jpeg,.png,.dcm" onChange={handleSingleFile} style={{ display: 'none' }} />
+              <input type="file" accept=".dcm" onChange={handleSingleFile} style={{ display: 'none' }} />
              {singlePreview
   ? <img src={singlePreview} alt="MRI" style={{ maxHeight: 300, borderRadius: 8, maxWidth: '100%' }} />
   : dicomFile
   ? <><div style={{ fontSize: '2.5rem', marginBottom: '0.8rem' }}>🏥</div><div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--teal)' }}>DICOM file loaded — ready to analyse</div></>
-  : <><div style={{ fontSize: '2.5rem', opacity: 0.3, marginBottom: '0.8rem' }}>🔬</div><div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)' }}>Click to upload JPG, PNG or DICOM (.dcm)</div></>
+  : <><div style={{ fontSize: '2.5rem', opacity: 0.3, marginBottom: '0.8rem' }}>🔬</div><div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)' }}>Click to upload DICOM (.dcm)</div></>
 }
             </label>
             <button onClick={runSinglePredict} disabled={!singleFile || loading} style={{ width: '100%', padding: '0.75rem', background: !singleFile || loading ? 'rgba(0,200,180,0.1)' : 'linear-gradient(135deg,#00C8B4,#0097A7)', border: 'none', borderRadius: '10px', cursor: !singleFile || loading ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-mono)', fontSize: '0.85rem', fontWeight: 700, color: !singleFile || loading ? 'var(--text-3)' : '#000', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
@@ -342,7 +342,7 @@ export default function Scanner() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
               {[['t1','T1 — Native anatomy'],['t1ce','T1ce — Contrast Enhanced'],['t2','T2 — Fluid / Edema'],['flair','FLAIR — Whole Tumor']].map(([key, label]) => (
                 <label key={key} style={{ display: 'block', border: '1px dashed rgba(0,200,180,0.25)', borderRadius: '10px', padding: '1rem', textAlign: 'center', cursor: 'pointer', background: 'rgba(0,200,180,0.02)' }}>
-                  <input type="file" accept=".jpg,.jpeg,.png" onChange={(e) => handleFusionFile(key, e)} style={{ display: 'none' }} />
+                  <input type="file" accept=".dcm" onChange={(e) => handleFusionFile(key, e)} style={{ display: 'none' }} />
                   {fusionPreviews[key]
                     ? <><img src={fusionPreviews[key]} alt={key} style={{ maxHeight: 120, borderRadius: 6, maxWidth: '100%', marginBottom: '0.4rem' }} /><div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--teal)', letterSpacing: '0.15em', textTransform: 'uppercase' }}>{label}</div></>
                     : <><div style={{ fontSize: '1.5rem', opacity: 0.3, marginBottom: '0.4rem' }}>🧬</div><div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--text-3)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>{label}</div></>

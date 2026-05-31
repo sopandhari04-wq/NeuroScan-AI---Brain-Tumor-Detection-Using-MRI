@@ -382,19 +382,38 @@ def load_dicom(file_bytes: bytes):
             delattr(ds, tag)
 
     # Convert pixel array to PIL image
-    pixel_array = ds.pixel_array.astype(float)
-    print(f"DICOM pixel array — shape: {pixel_array.shape}, min: {pixel_array.min()}, max: {pixel_array.max()}, dtype: {ds.pixel_array.dtype}")
-    if hasattr(ds, 'RescaleSlope') and hasattr(ds, 'RescaleIntercept'):
-        pixel_array = pixel_array * float(ds.RescaleSlope) + float(ds.RescaleIntercept)
+    try:
+        pixel_array = ds.pixel_array
+    except Exception as e:
+        raise ValueError(f"Cannot read pixel data: {e}")
 
-    # Clip negative values (common in CT/MRI Hounsfield units)
-    pixel_array = np.clip(pixel_array, 0, None)
+    # Handle different bit depths
+    pixel_array = pixel_array.astype(np.float32)
+
+    # Apply rescale if available
+    slope     = float(getattr(ds, 'RescaleSlope', 1))
+    intercept = float(getattr(ds, 'RescaleIntercept', 0))
+    pixel_array = pixel_array * slope + intercept
+
+    # Handle multi-frame — take middle frame
+    if len(pixel_array.shape) == 3:
+        mid = pixel_array.shape[0] // 2
+        pixel_array = pixel_array[mid]
 
     # Normalize to 0-255
-    if pixel_array.max() > pixel_array.min():
-        pixel_array = (pixel_array - pixel_array.min()) / (pixel_array.max() - pixel_array.min()) * 255
+    p_min = pixel_array.min()
+    p_max = pixel_array.max()
+    print(f"DICOM pixels — min: {p_min}, max: {p_max}, shape: {pixel_array.shape}")
+
+    if p_max > p_min:
+        pixel_array = (pixel_array - p_min) / (p_max - p_min) * 255
     else:
-        pixel_array = np.zeros_like(pixel_array)
+        raise ValueError("DICOM pixel array is empty or uniform — invalid scan")
+
+    pixel_array = np.clip(pixel_array, 0, 255).astype('uint8')
+
+    # Convert to RGB PIL image
+    pil_img = Image.fromarray(pixel_array).convert('RGB')
     
     pixel_array = pixel_array.astype('uint8')
 
@@ -772,20 +791,6 @@ async def predict_single(
     else:
         pil_img = pil_from_upload(contents)
 
-    # Validate using MRI classifier
-    if not is_valid_mri(pil_img):
-        return {
-            "prediction":    "invalid",
-            "display_name":  "Invalid Input",
-            "confidence":    0,
-            "color":         "#888888",
-            "probabilities": {CLASS_NAMES[i]: 0.0 for i in range(len(CLASS_NAMES))},
-            "tumor_info":    None,
-            "gradcam":       None,
-            "overlay_image": None,
-            "dicom_info":    dicom_info,
-            "error":         "This image does not appear to be a valid MRI scan. Please upload a proper brain MRI."
-        }
 
     arr = preprocess(pil_img)
 
@@ -879,20 +884,7 @@ async def predict_fusion(
         imgs.append(pil_img)
     dicom_info = None
 
-    # Validate first image using MRI classifier
-    if not is_valid_mri(imgs[0]):
-        return {
-            "prediction":    "invalid",
-            "display_name":  "Invalid Input",
-            "confidence":    0,
-            "color":         "#888888",
-            "probabilities": {CLASS_NAMES[i]: 0.0 for i in range(len(CLASS_NAMES))},
-            "tumor_info":    None,
-            "gradcam":       None,
-            "overlay_image": None,
-            "dicom_info":    None,
-            "error":         "This image does not appear to be a valid MRI scan. Please upload a proper brain MRI."
-        }
+
 
     gray_arrays = [np.array(p.convert("L").resize((128,128)), dtype=np.float32)/255.0 for p in imgs]
     fused_4ch   = np.stack(gray_arrays, axis=-1)
