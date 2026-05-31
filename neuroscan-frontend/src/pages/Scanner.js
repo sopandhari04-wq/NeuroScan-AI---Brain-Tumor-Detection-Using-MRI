@@ -144,6 +144,7 @@ export default function Scanner() {
       const data = await res.json()
       setResult({ ...data, mode: 'Single MRI' })
       console.log('DICOM INFO:', data.dicom_info)
+      console.log('PREPROCESSING:', data.preprocessing)
       fetchRecentScans(username, setRecentScans)
     } catch {
       setError('Failed to connect to AI backend. Please try again.')
