@@ -383,6 +383,7 @@ def load_dicom(file_bytes: bytes):
 
     # Convert pixel array to PIL image
     pixel_array = ds.pixel_array.astype(float)
+    print(f"DICOM pixel array — shape: {pixel_array.shape}, min: {pixel_array.min()}, max: {pixel_array.max()}, dtype: {ds.pixel_array.dtype}")
     if hasattr(ds, 'RescaleSlope') and hasattr(ds, 'RescaleIntercept'):
         pixel_array = pixel_array * float(ds.RescaleSlope) + float(ds.RescaleIntercept)
 
