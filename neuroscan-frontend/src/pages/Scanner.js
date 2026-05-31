@@ -98,6 +98,7 @@ export default function Scanner() {
   const [chatInput, setChatInput]       = useState('')
   const [chatLoading, setChatLoading]   = useState(false)
   const [dicomFile, setDicomFile] = useState(false)
+  const [showPreprocessing, setShowPreprocessing] = useState(false)
 
   useEffect(() => {
     fetchRecentScans(username, setRecentScans)
@@ -436,6 +437,51 @@ export default function Scanner() {
                 })}
               </div>
             </div>
+            
+            {/* Preprocessing Pipeline */}
+{result.preprocessing && (
+  <div style={{ marginBottom: '1.5rem' }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.8rem' }}>
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', letterSpacing: '0.25em', textTransform: 'uppercase', color: 'var(--text-3)' }}>
+        🔬 Pre-processing Pipeline
+      </div>
+      <button
+        onClick={() => setShowPreprocessing(!showPreprocessing)}
+        style={{ background: showPreprocessing ? 'rgba(12,242,200,0.12)' : 'rgba(255,255,255,0.04)', border: `1px solid ${showPreprocessing ? 'rgba(12,242,200,0.3)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '8px', color: showPreprocessing ? 'var(--teal)' : 'var(--text-3)', fontFamily: 'var(--font-mono)', fontSize: '0.62rem', padding: '0.3rem 0.8rem', cursor: 'pointer' }}
+      >
+        {showPreprocessing ? 'Hide Pipeline' : 'Show Pipeline'}
+      </button>
+    </div>
+
+    {showPreprocessing && (
+      <div style={{ border: '1px solid rgba(12,242,200,0.15)', borderRadius: '12px', background: 'rgba(12,242,200,0.02)', padding: '1.2rem' }}>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--text-3)', marginBottom: '1rem', letterSpacing: '0.1em' }}>
+          Raw DICOM → Normalized → Skull Stripped → CLAHE Enhanced
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '0.75rem' }}>
+          {[
+            { key: 'raw',            label: '1. Raw DICOM',      color: '#888' },
+            { key: 'normalized',     label: '2. Normalized',     color: '#7B82F5' },
+            { key: 'skull_stripped', label: '3. Skull Stripped',  color: '#FFAD3B' },
+            { key: 'enhanced',       label: '4. CLAHE Enhanced', color: '#0CF2C8' },
+          ].map(({ key, label, color }) => (
+            <div key={key} style={{ textAlign: 'center' }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.55rem', color, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '0.4rem' }}>{label}</div>
+              <img
+                src={`data:image/png;base64,${result.preprocessing[key]}`}
+                alt={label}
+                style={{ width: '100%', borderRadius: '8px', border: `1px solid ${color}33` }}
+              />
+            </div>
+          ))}
+        </div>
+        <div style={{ marginTop: '0.8rem', fontFamily: 'var(--font-mono)', fontSize: '0.58rem', color: 'var(--text-3)', padding: '0.5rem 0.8rem', background: 'rgba(255,255,255,0.02)', borderRadius: '6px' }}>
+          Pipeline applied before AI inference · Skull stripping removes non-brain tissue · CLAHE enhances local contrast
+        </div>
+      </div>
+    )}
+  </div>
+)}
 
             {/* Grad-CAM Images */}
             {result.overlay_image && (
