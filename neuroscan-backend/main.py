@@ -386,11 +386,16 @@ def load_dicom(file_bytes: bytes):
     if hasattr(ds, 'RescaleSlope') and hasattr(ds, 'RescaleIntercept'):
         pixel_array = pixel_array * float(ds.RescaleSlope) + float(ds.RescaleIntercept)
 
+    # Clip negative values (common in CT/MRI Hounsfield units)
+    pixel_array = np.clip(pixel_array, 0, None)
+
     # Normalize to 0-255
-    pixel_array -= pixel_array.min()
-    if pixel_array.max() > 0:
-        pixel_array /= pixel_array.max()
-    pixel_array = (pixel_array * 255).astype('uint8')
+    if pixel_array.max() > pixel_array.min():
+        pixel_array = (pixel_array - pixel_array.min()) / (pixel_array.max() - pixel_array.min()) * 255
+    else:
+        pixel_array = np.zeros_like(pixel_array)
+    
+    pixel_array = pixel_array.astype('uint8')
 
     # Handle different array shapes
     if len(pixel_array.shape) == 2:
