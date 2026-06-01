@@ -281,16 +281,32 @@ async function saveAnnotation() {
   if (!canvasRef.current || !result) return
   setAnnotationSaving(true)
   try {
-    const annotationData = canvasRef.current.toDataURL('image/png')
+    // Merge Grad-CAM + annotation canvas into one image
+    const mergedCanvas = document.createElement('canvas')
+    mergedCanvas.width  = 512
+    mergedCanvas.height = 512
+    const ctx = mergedCanvas.getContext('2d')
+
+    // Draw Grad-CAM image first
+    const gradcamImg = new window.Image()
+    gradcamImg.src = `data:image/png;base64,${result.overlay_image}`
+    await new Promise(resolve => { gradcamImg.onload = resolve })
+    ctx.drawImage(gradcamImg, 0, 0, 512, 512)
+
+    // Draw annotation canvas on top
+    ctx.drawImage(canvasRef.current, 0, 0, 512, 512)
+
+    const mergedData = mergedCanvas.toDataURL('image/png')
+
     const { error } = await supabase.from('annotations').insert({
-      scan_username:    username,
-      doctor_username:  username,
-      prediction:       result.prediction,
-      annotation_data:  annotationData,
-      notes:            annotationNotes,
-      created_at:       new Date().toISOString(),
+      scan_username:   username,
+      doctor_username: username,
+      prediction:      result.prediction,
+      annotation_data: mergedData,
+      notes:           annotationNotes,
+      created_at:      new Date().toISOString(),
     })
-      if (error) {
+    if (error) {
       console.error('Supabase error:', error)
       alert('Save failed: ' + error.message)
     } else {
@@ -302,6 +318,7 @@ async function saveAnnotation() {
     setAnnotationSaving(false)
   }
 }
+
 
   async function downloadPDF() {
     setPdfLoading(true)
