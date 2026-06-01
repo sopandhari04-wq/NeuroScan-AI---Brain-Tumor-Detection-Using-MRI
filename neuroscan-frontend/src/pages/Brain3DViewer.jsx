@@ -27,6 +27,7 @@ export default function Brain3DViewer({ result }) {
   const rotRef      = useRef({ x: 0.3, y: 0 })
 
   const [autoRotate, setAutoRotate] = useState(true)
+  // eslint-disable-next-line no-unused-vars
   const [showLabels, setShowLabels] = useState(true)
   const [opacity, setOpacity]       = useState(0.35)
   const [activeLayer, setActiveLayer] = useState('all')
@@ -141,8 +142,11 @@ export default function Brain3DViewer({ result }) {
       const tumorY = r * Math.sin(regionPos.phi)
       const tumorZ = r * Math.cos(regionPos.phi) * Math.cos(regionPos.theta)
 
+      // eslint-disable-next-line no-unused-vars
       const etPct = subregions?.ET?.pct || 20
+      // eslint-disable-next-line no-unused-vars
       const tcPct = subregions?.TC?.pct || 15
+      // eslint-disable-next-line no-unused-vars
       const wtPct = subregions?.WT?.pct || 25
 
       const volScale = Math.max(0.08, Math.min(0.35, (radiomics?.est_volume_cm3 || 1) / 8))
@@ -305,6 +309,7 @@ export default function Brain3DViewer({ result }) {
       mount.removeChild(renderer.domElement)
       renderer.dispose()
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prediction, activeLayer, isTumor])
 
   const accentColor = {
