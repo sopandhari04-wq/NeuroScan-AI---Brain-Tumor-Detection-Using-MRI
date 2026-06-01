@@ -282,7 +282,7 @@ async function saveAnnotation() {
   setAnnotationSaving(true)
   try {
     const annotationData = canvasRef.current.toDataURL('image/png')
-    await supabase.from('annotations').insert({
+    const { error } = await supabase.from('annotations').insert({
       scan_username:    username,
       doctor_username:  username,
       prediction:       result.prediction,
@@ -290,7 +290,12 @@ async function saveAnnotation() {
       notes:            annotationNotes,
       created_at:       new Date().toISOString(),
     })
-    setAnnotationSaved(true)
+      if (error) {
+      console.error('Supabase error:', error)
+      alert('Save failed: ' + error.message)
+    } else {
+      setAnnotationSaved(true)
+    }
   } catch (err) {
     console.error('Annotation save error:', err)
   } finally {
