@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../App'
 import { supabase } from '../lib/supabase'
+import Brain3DViewer from './Brain3DViewer'
 
 
 const API = 'https://neuroscan-ai-brain-tumor-detection-using.onrender.com'
@@ -640,6 +641,11 @@ async function saveAnnotation() {
         </div>
       </div>
     </div>
+
+    {/* 3D Brain Visualization */}
+{result && result.prediction !== 'invalid' && result.gradcam && (
+  <Brain3DViewer result={result} />
+)}
 
     {/* Annotation Tools */}
     {showAnnotation && (
