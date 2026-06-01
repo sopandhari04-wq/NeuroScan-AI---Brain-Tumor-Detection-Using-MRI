@@ -972,11 +972,12 @@ async def predict_fusion(
 
     # Generate preprocessing pipeline for DICOM files
     if dicom_info:
+        # Generate preprocessing pipeline for ALL files
         try:
             preprocessing = generate_preprocessing_pipeline(pil_img)
         except Exception as e:
             print(f"Preprocessing pipeline error: {e}")
-
+       
     if gradcam:
         try:
             feat_model  = get_feat_model()
@@ -988,7 +989,9 @@ async def predict_fusion(
             import base64
             overlay_b64 = base64.b64encode(buf.getvalue()).decode()
         except Exception as e:
+            import traceback
             print(f"Grad-CAM error: {e}")
+            traceback.print_exc()
 
     return {
         "prediction":    predicted_cls,
