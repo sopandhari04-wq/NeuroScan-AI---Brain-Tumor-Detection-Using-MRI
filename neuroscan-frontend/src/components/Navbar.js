@@ -26,6 +26,7 @@ export default function Navbar() {
         { to: '/timeline', label: 'Timeline' },
         { to: '/statistics', label: 'Statistics' },
         { to: '/chat', label: 'AI Chat' },
+        { to: '/annotations', label: 'Annotations' },
       ]
     : []
 
