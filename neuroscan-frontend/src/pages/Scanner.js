@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../App'
 import { supabase } from '../lib/supabase'
+import { useState, useEffect, useRef } from 'react'
 
 const API = 'https://neuroscan-ai-brain-tumor-detection-using.onrender.com'
 
@@ -99,6 +100,15 @@ export default function Scanner() {
   const [chatLoading, setChatLoading]   = useState(false)
   const [dicomFile, setDicomFile] = useState(false)
   const [showPreprocessing, setShowPreprocessing] = useState(false)
+  const [showAnnotation, setShowAnnotation]   = useState(false)
+  const [annotationTool, setAnnotationTool]   = useState('brush')
+  const [annotationColor, setAnnotationColor] = useState('#FF5757')
+  const [brushSize, setBrushSize]             = useState(8)
+  const [annotationNotes, setAnnotationNotes] = useState('')
+  const [annotationSaved, setAnnotationSaved] = useState(false)
+  const [annotationSaving, setAnnotationSaving] = useState(false)
+  const canvasRef = useRef(null)
+  const isDrawing = useRef(false)
 
   useEffect(() => {
     fetchRecentScans(username, setRecentScans)
@@ -206,6 +216,85 @@ export default function Scanner() {
     setChatMessages(prev => [...prev, { role: 'ai', text: 'Failed to get response. Please try again.' }])
   } finally {
     setChatLoading(false)
+  }
+}
+
+function startDrawing(e) {
+  isDrawing.current = true
+  const canvas = canvasRef.current
+  const rect   = canvas.getBoundingClientRect()
+  const ctx    = canvas.getContext('2d')
+  const scaleX = canvas.width / rect.width
+  const scaleY = canvas.height / rect.height
+  const x = (e.clientX - rect.left) * scaleX
+  const y = (e.clientY - rect.top) * scaleY
+  ctx.beginPath()
+  ctx.moveTo(x, y)
+}
+
+function draw(e) {
+  if (!isDrawing.current) return
+  const canvas = canvasRef.current
+  const rect   = canvas.getBoundingClientRect()
+  const ctx    = canvas.getContext('2d')
+  const scaleX = canvas.width / rect.width
+  const scaleY = canvas.height / rect.height
+  const x = (e.clientX - rect.left) * scaleX
+  const y = (e.clientY - rect.top) * scaleY
+
+  ctx.lineWidth   = brushSize
+  ctx.lineCap     = 'round'
+  ctx.lineJoin    = 'round'
+
+  if (annotationTool === 'eraser') {
+    ctx.globalCompositeOperation = 'destination-out'
+    ctx.strokeStyle = 'rgba(0,0,0,1)'
+  } else {
+    ctx.globalCompositeOperation = 'source-over'
+    ctx.strokeStyle = annotationColor
+    ctx.globalAlpha = 0.7
+  }
+
+  ctx.lineTo(x, y)
+  ctx.stroke()
+  ctx.beginPath()
+  ctx.moveTo(x, y)
+}
+
+function stopDrawing() {
+  isDrawing.current = false
+  const canvas = canvasRef.current
+  const ctx    = canvas.getContext('2d')
+  ctx.beginPath()
+  ctx.globalAlpha = 1
+  ctx.globalCompositeOperation = 'source-over'
+}
+
+function clearCanvas() {
+  const canvas = canvasRef.current
+  const ctx    = canvas.getContext('2d')
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+  setAnnotationSaved(false)
+}
+
+async function saveAnnotation() {
+  if (!canvasRef.current || !result) return
+  setAnnotationSaving(true)
+  try {
+    const annotationData = canvasRef.current.toDataURL('image/png')
+    await supabase.from('annotations').insert({
+      scan_username:    username,
+      doctor_username:  username,
+      prediction:       result.prediction,
+      annotation_data:  annotationData,
+      notes:            annotationNotes,
+      created_at:       new Date().toISOString(),
+    })
+    setAnnotationSaved(true)
+  } catch (err) {
+    console.error('Annotation save error:', err)
+  } finally {
+    setAnnotationSaving(false)
   }
 }
 
@@ -484,28 +573,105 @@ export default function Scanner() {
   </div>
 )}
 
-            {/* Grad-CAM Images */}
-            {result.overlay_image && (
-              <div style={{ marginBottom: '1.5rem' }}>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', letterSpacing: '0.25em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '0.8rem' }}>🔥 Grad-CAM · AI Attention Heatmap</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                  <div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '0.4rem' }}>Original MRI</div>
-                   {(activeTab === 'single' ? (singlePreview || result.preprocessing?.raw) : fusionPreviews.t1) && 
-  <img 
-    src={activeTab === 'single' ? (singlePreview ? singlePreview : `data:image/png;base64,${result.preprocessing.raw}`) : fusionPreviews.t1} 
-    alt="Original" 
-    style={{ width: '100%', borderRadius: 8, border: '1px solid var(--border)' }} 
-  />
-}
-                  </div>
-                  <div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '0.4rem' }}>Grad-CAM Overlay</div>
-                    <img src={`data:image/png;base64,${result.overlay_image}`} alt="Grad-CAM" style={{ width: '100%', borderRadius: 8, border: '1px solid var(--border)' }} />
-                  </div>
-                </div>
-              </div>
-            )}
+           {/* Grad-CAM Images */}
+{result.overlay_image && (
+  <div style={{ marginBottom: '1.5rem' }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.8rem' }}>
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', letterSpacing: '0.25em', textTransform: 'uppercase', color: 'var(--text-3)' }}>🔥 Grad-CAM · AI Attention Heatmap</div>
+      <button
+        onClick={() => { setShowAnnotation(!showAnnotation); setAnnotationSaved(false) }}
+        style={{ background: showAnnotation ? 'rgba(255,173,59,0.12)' : 'rgba(255,255,255,0.04)', border: `1px solid ${showAnnotation ? 'rgba(255,173,59,0.3)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '8px', color: showAnnotation ? '#FFAD3B' : 'var(--text-3)', fontFamily: 'var(--font-mono)', fontSize: '0.62rem', padding: '0.3rem 0.8rem', cursor: 'pointer' }}
+      >
+        {showAnnotation ? '✏️ Hide Annotation' : '✏️ Annotate'}
+      </button>
+    </div>
+
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+      <div>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '0.4rem' }}>Original MRI</div>
+        {(activeTab === 'single' ? (singlePreview || result.preprocessing?.raw) : fusionPreviews.t1) &&
+          <img
+            src={activeTab === 'single' ? (singlePreview ? singlePreview : `data:image/png;base64,${result.preprocessing.raw}`) : fusionPreviews.t1}
+            alt="Original"
+            style={{ width: '100%', borderRadius: 8, border: '1px solid var(--border)' }}
+          />
+        }
+      </div>
+      <div>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '0.4rem' }}>
+          {showAnnotation ? 'Grad-CAM · Draw to Annotate' : 'Grad-CAM Overlay'}
+        </div>
+        <div style={{ position: 'relative' }}>
+          <img src={`data:image/png;base64,${result.overlay_image}`} alt="Grad-CAM" style={{ width: '100%', borderRadius: 8, border: '1px solid var(--border)', display: 'block' }} />
+          {showAnnotation && (
+            <canvas
+              ref={canvasRef}
+              width={512}
+              height={512}
+              onMouseDown={startDrawing}
+              onMouseMove={draw}
+              onMouseUp={stopDrawing}
+              onMouseLeave={stopDrawing}
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', borderRadius: 8, cursor: annotationTool === 'eraser' ? 'cell' : 'crosshair' }}
+            />
+          )}
+        </div>
+      </div>
+    </div>
+
+    {/* Annotation Tools */}
+    {showAnnotation && (
+      <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(255,173,59,0.04)', border: '1px solid rgba(255,173,59,0.15)', borderRadius: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+
+          {/* Tool selector */}
+          <div style={{ display: 'flex', gap: '0.4rem' }}>
+            {[['brush', '🖌️ Brush'], ['eraser', '⌫ Eraser']].map(([tool, label]) => (
+              <button key={tool} onClick={() => setAnnotationTool(tool)} style={{ background: annotationTool === tool ? 'rgba(255,173,59,0.15)' : 'rgba(255,255,255,0.04)', border: `1px solid ${annotationTool === tool ? 'rgba(255,173,59,0.4)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '6px', color: annotationTool === tool ? '#FFAD3B' : 'var(--text-3)', fontFamily: 'var(--font-mono)', fontSize: '0.6rem', padding: '0.3rem 0.6rem', cursor: 'pointer' }}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Color presets */}
+          <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.55rem', color: 'var(--text-3)' }}>Region:</span>
+            {[['#FF5757', 'ET'], ['#FFAD3B', 'TC'], ['#FFE566', 'WT'], ['#00FF00', 'Normal']].map(([color, label]) => (
+              <button key={color} onClick={() => { setAnnotationColor(color); setAnnotationTool('brush') }} style={{ background: annotationColor === color ? `${color}33` : 'transparent', border: `2px solid ${color}`, borderRadius: '6px', color, fontFamily: 'var(--font-mono)', fontSize: '0.55rem', padding: '0.2rem 0.5rem', cursor: 'pointer', fontWeight: annotationColor === color ? 700 : 400 }}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Brush size */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.55rem', color: 'var(--text-3)' }}>Size:</span>
+            <input type="range" min="2" max="20" value={brushSize} onChange={e => setBrushSize(Number(e.target.value))} style={{ width: 80 }} />
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.55rem', color: 'var(--text-3)' }}>{brushSize}px</span>
+          </div>
+
+          {/* Clear */}
+          <button onClick={clearCanvas} style={{ background: 'rgba(255,87,87,0.08)', border: '1px solid rgba(255,87,87,0.2)', borderRadius: '6px', color: '#FF5757', fontFamily: 'var(--font-mono)', fontSize: '0.6rem', padding: '0.3rem 0.6rem', cursor: 'pointer' }}>
+            🗑️ Clear
+          </button>
+        </div>
+
+        {/* Notes */}
+        <input
+          value={annotationNotes}
+          onChange={e => setAnnotationNotes(e.target.value)}
+          placeholder="Add clinical notes about your annotation…"
+          style={{ width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'var(--text-1)', fontFamily: 'var(--font-mono)', fontSize: '0.68rem', padding: '0.5rem 0.8rem', outline: 'none', boxSizing: 'border-box', marginBottom: '0.6rem' }}
+        />
+
+        {/* Save */}
+        <button onClick={saveAnnotation} disabled={annotationSaving} style={{ background: annotationSaved ? 'rgba(12,242,200,0.12)' : 'linear-gradient(135deg,#FFAD3B,#FF8C00)', border: 'none', borderRadius: '8px', color: annotationSaved ? 'var(--teal)' : '#000', fontFamily: 'var(--font-mono)', fontSize: '0.72rem', fontWeight: 700, padding: '0.5rem 1.2rem', cursor: 'pointer' }}>
+          {annotationSaving ? 'Saving…' : annotationSaved ? '✅ Annotation Saved!' : '💾 Save Annotation'}
+        </button>
+      </div>
+    )}
+  </div>
+)} 
 
            {/* Grad-CAM XAI */}
 {result.gradcam && gradcamExp && (
