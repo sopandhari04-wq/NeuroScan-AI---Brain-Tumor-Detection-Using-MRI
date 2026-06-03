@@ -494,6 +494,88 @@ def add_scan_record(username, predicted_cls, confidence, mode):
     except Exception as e:
         print(f"Could not save scan: {e}")
 
+async def send_tumor_alert_email(username: str, prediction: str, confidence: float, mode: str):
+    try:
+        resend_api_key = os.environ.get("RESEND_API_KEY", "")
+        if not resend_api_key:
+            print("Resend API key not set — skipping email")
+            return
+
+        # Get user and doctor info from Supabase
+        sb = get_supabase()
+        user_res = sb.table("users").select("name, doctor_username").eq("username", username).single().execute()
+        user_data = user_res.data if user_res else None
+
+        patient_name  = user_data.get("name", username) if user_data else username
+        doctor_username = user_data.get("doctor_username") if user_data else None
+
+        cls_label = {"glioma": "Glioma", "meningioma": "Meningioma", "notumor": "No Tumor", "pituitary": "Pituitary"}
+        pred_label = cls_label.get(prediction, prediction)
+        conf_pct   = round(confidence * 100)
+
+        # Email to patient
+        patient_html = f"""
+        <div style="font-family: monospace; background: #080c14; color: #e0e0e0; padding: 2rem; border-radius: 12px; max-width: 600px;">
+          <h2 style="color: #0CF2C8;">NeuroScan AI — Scan Result Ready</h2>
+          <p>Hello <strong>{patient_name}</strong>,</p>
+          <p>Your MRI scan has been analysed by NeuroScan AI.</p>
+          <div style="background: #1a1f2e; padding: 1rem; border-radius: 8px; border-left: 4px solid #FF5757; margin: 1rem 0;">
+            <p style="margin: 0; color: #FF5757; font-weight: bold;">⚠ Tumor Detected</p>
+            <p style="margin: 0.5rem 0 0;">Prediction: <strong style="color: #FF5757;">{pred_label}</strong></p>
+            <p style="margin: 0.5rem 0 0;">Confidence: <strong>{conf_pct}%</strong></p>
+            <p style="margin: 0.5rem 0 0;">Mode: {mode}</p>
+          </div>
+          <p style="color: #FF5757;"><strong>Please consult your doctor immediately.</strong></p>
+          <p style="color: #888; font-size: 0.8rem;">This is an AI-generated result for research purposes only. Not a clinical diagnosis.</p>
+        </div>
+        """
+
+        async with httpx.AsyncClient() as client:
+            # Send to patient
+            await client.post(
+                "https://api.resend.com/emails",
+                headers={"Authorization": f"Bearer {resend_api_key}", "Content-Type": "application/json"},
+                json={
+                    "from":    "NeuroScan AI <onboarding@resend.dev>",
+                    "to":      [username],
+                    "subject": f"⚠ Tumor Detected — {pred_label} ({conf_pct}% confidence)",
+                    "html":    patient_html,
+                }
+            )
+            print(f"Patient email sent to {username}")
+
+            # Send to doctor if assigned
+            if doctor_username:
+                doctor_html = f"""
+                <div style="font-family: monospace; background: #080c14; color: #e0e0e0; padding: 2rem; border-radius: 12px; max-width: 600px;">
+                  <h2 style="color: #0CF2C8;">NeuroScan AI — Patient Alert</h2>
+                  <p>Hello Doctor,</p>
+                  <p>Your patient <strong>{patient_name}</strong> ({username}) has a new scan result.</p>
+                  <div style="background: #1a1f2e; padding: 1rem; border-radius: 8px; border-left: 4px solid #FF5757; margin: 1rem 0;">
+                    <p style="margin: 0; color: #FF5757; font-weight: bold;">⚠ Tumor Detected</p>
+                    <p style="margin: 0.5rem 0 0;">Prediction: <strong style="color: #FF5757;">{pred_label}</strong></p>
+                    <p style="margin: 0.5rem 0 0;">Confidence: <strong>{conf_pct}%</strong></p>
+                    <p style="margin: 0.5rem 0 0;">Mode: {mode}</p>
+                  </div>
+                  <p>Please review and follow up with your patient.</p>
+                  <p style="color: #888; font-size: 0.8rem;">NeuroScan AI — Research prototype · Not for clinical use.</p>
+                </div>
+                """
+                await client.post(
+                    "https://api.resend.com/emails",
+                    headers={"Authorization": f"Bearer {resend_api_key}", "Content-Type": "application/json"},
+                    json={
+                        "from":    "NeuroScan AI <onboarding@resend.dev>",
+                        "to":      [doctor_username],
+                        "subject": f"⚠ Patient Alert — {patient_name} · {pred_label} Detected",
+                        "html":    doctor_html,
+                    }
+                )
+                print(f"Doctor email sent to {doctor_username}")
+
+    except Exception as e:
+        print(f"Email error: {e}")
+
 def get_user_scans(username):
     try:
         sb  = get_supabase()
@@ -858,6 +940,11 @@ async def predict_single(
     overlay_b64 = None
     preprocessing = None
 
+    # Send email alert if tumor detected
+    if predicted_cls != 'notumor':
+        import asyncio
+        asyncio.create_task(send_tumor_alert_email(username, predicted_cls, confidence, "Single MRI"))
+
     # Generate preprocessing pipeline for DICOM files
     if dicom_info:
         try:
@@ -969,6 +1056,11 @@ async def predict_fusion(
     cam_data    = None
     overlay_b64 = None
     preprocessing = None
+
+    if predicted_cls != 'notumor':
+        import asyncio
+        asyncio.create_task(send_tumor_alert_email(username, predicted_cls, confidence, "Multi-Modal Fusion"))
+    
 
     # Generate preprocessing pipeline for DICOM files
     if dicom_info:
