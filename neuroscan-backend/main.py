@@ -1109,7 +1109,15 @@ async def download_report(
     patient_gender: str = "Not specified",
 ):
     contents = await file.read()
-    pil_img  = pil_from_upload(contents)
+   
+    # Handle DICOM files
+    if file.filename and file.filename.lower().endswith('.dcm'):
+        try:
+            pil_img, _ = load_dicom(contents)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Invalid DICOM file: {e}")
+    else:
+        pil_img = pil_from_upload(contents)
     arr      = preprocess(pil_img)
 
     interpreter   = get_tflite()
