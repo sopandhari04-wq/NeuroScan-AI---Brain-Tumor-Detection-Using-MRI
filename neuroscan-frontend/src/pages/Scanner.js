@@ -536,7 +536,7 @@ async function saveAnnotation() {
                 <span style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 700, color: accent }}>{Math.round(result.confidence * 100)}%</span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '0.6rem' }}>
-                {Object.entries(result.probabilities).map(([cls, prob]) => {
+                  {Object.entries(result.probabilities || {}).map(([cls, prob]) => {
                   const isActive = cls === result.prediction
                   const c = CLASS_COLORS[cls]
                   return (
