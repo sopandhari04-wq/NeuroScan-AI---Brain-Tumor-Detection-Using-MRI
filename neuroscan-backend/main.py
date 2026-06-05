@@ -942,8 +942,7 @@ async def predict_single(
 
     # Send email alert if tumor detected
     if predicted_cls != 'notumor':
-        import asyncio
-        asyncio.create_task(send_tumor_alert_email(username, predicted_cls, confidence, "Single MRI"))
+        await send_tumor_alert_email(username, predicted_cls, confidence, "Single MRI")
 
     # Generate preprocessing pipeline for DICOM files
     if dicom_info:
@@ -1058,9 +1057,7 @@ async def predict_fusion(
     preprocessing = None
 
     if predicted_cls != 'notumor':
-        import asyncio
-        asyncio.create_task(send_tumor_alert_email(username, predicted_cls, confidence, "Multi-Modal Fusion"))
-    
+        await send_tumor_alert_email(username, predicted_cls, confidence, "Multi-Modal Fusion")
 
     # Generate preprocessing pipeline for DICOM files
     if dicom_info:
