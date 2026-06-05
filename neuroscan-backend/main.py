@@ -940,81 +940,82 @@ async def predict_single(
     overlay_b64 = None
     preprocessing = None
 
-    async def send_tumor_alert_email(username: str, prediction: str, confidence: float, mode: str):
-        try:
-            import smtplib
-            from email.mime.multipart import MIMEMultipart
-            from email.mime.text import MIMEText
+async def send_tumor_alert_email(username: str, prediction: str, confidence: float, mode: str):
+    try:
+        import smtplib
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
 
-            gmail_user     = os.environ.get("GMAIL_USER", "")
-            gmail_password = os.environ.get("GMAIL_APP_PASSWORD", "")
+        gmail_user     = os.environ.get("GMAIL_USER", "")
+        gmail_password = os.environ.get("GMAIL_APP_PASSWORD", "")
 
-            if not gmail_user or not gmail_password:
-                print("Gmail credentials not set — skipping email")
-                return
+        if not gmail_user or not gmail_password:
+            print("Gmail credentials not set — skipping email")
+            return
 
-            # Get user and doctor info
-            sb = get_supabase()
-            user_res  = sb.table("users").select("name, doctor_username").eq("username", username).single().execute()
-            user_data = user_res.data if user_res else None
+        # Get user and doctor info
+        sb = get_supabase()
+        user_res  = sb.table("users").select("name, doctor_username").eq("username", username).single().execute()
+        user_data = user_res.data if user_res else None
 
-            patient_name    = user_data.get("name", username) if user_data else username
-            doctor_username = user_data.get("doctor_username") if user_data else None
+        patient_name    = user_data.get("name", username) if user_data else username
+        doctor_username = user_data.get("doctor_username") if user_data else None
 
-            cls_label  = {"glioma": "Glioma", "meningioma": "Meningioma", "notumor": "No Tumor", "pituitary": "Pituitary"}
-            pred_label = cls_label.get(prediction, prediction)
-            conf_pct   = round(confidence * 100)
+        cls_label  = {"glioma": "Glioma", "meningioma": "Meningioma", "notumor": "No Tumor", "pituitary": "Pituitary"}
+        pred_label = cls_label.get(prediction, prediction)
+        conf_pct   = round(confidence * 100)
 
-            def send_email(to_email, subject, html_body):
-                msg = MIMEMultipart('alternative')
-                msg['Subject'] = subject
-                msg['From']    = f"NeuroScan AI <{gmail_user}>"
-                msg['To']      = to_email
-                msg.attach(MIMEText(html_body, 'html'))
-                with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-                    server.login(gmail_user, gmail_password)
-                    server.sendmail(gmail_user, to_email, msg.as_string())
-                print(f"Email sent to {to_email}")
+        def send_email(to_email, subject, html_body):
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = subject
+            msg['From']    = f"NeuroScan AI <{gmail_user}>"
+            msg['To']      = to_email
+            msg.attach(MIMEText(html_body, 'html'))
+            with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+                server.login(gmail_user, gmail_password)
+                server.sendmail(gmail_user, to_email, msg.as_string())
+            print(f"Email sent to {to_email}")
 
-            # Patient email
-            patient_html = f"""
+        # Patient email
+        patient_html = f"""
+        <div style="font-family: monospace; background: #080c14; color: #e0e0e0; padding: 2rem; border-radius: 12px; max-width: 600px;">
+          <h2 style="color: #0CF2C8;">NeuroScan AI — Scan Result Ready</h2>
+          <p>Hello <strong>{patient_name}</strong>,</p>
+          <p>Your MRI scan has been analysed by NeuroScan AI.</p>
+          <div style="background: #1a1f2e; padding: 1rem; border-radius: 8px; border-left: 4px solid #FF5757; margin: 1rem 0;">
+            <p style="margin: 0; color: #FF5757; font-weight: bold;">⚠ Tumor Detected</p>
+            <p style="margin: 0.5rem 0 0;">Prediction: <strong style="color: #FF5757;">{pred_label}</strong></p>
+            <p style="margin: 0.5rem 0 0;">Confidence: <strong>{conf_pct}%</strong></p>
+            <p style="margin: 0.5rem 0 0;">Mode: {mode}</p>
+          </div>
+          <p style="color: #FF5757;"><strong>Please consult your doctor immediately.</strong></p>
+          <p style="color: #888; font-size: 0.8rem;">This is an AI-generated result for research purposes only. Not a clinical diagnosis.</p>
+        </div>
+        """
+        send_email(username, f"⚠ Tumor Detected — {pred_label} ({conf_pct}% confidence)", patient_html)
+
+        # Doctor email
+        if doctor_username:
+            doctor_html = f"""
             <div style="font-family: monospace; background: #080c14; color: #e0e0e0; padding: 2rem; border-radius: 12px; max-width: 600px;">
-            <h2 style="color: #0CF2C8;">NeuroScan AI — Scan Result Ready</h2>
-            <p>Hello <strong>{patient_name}</strong>,</p>
-            <p>Your MRI scan has been analysed by NeuroScan AI.</p>
-            <div style="background: #1a1f2e; padding: 1rem; border-radius: 8px; border-left: 4px solid #FF5757; margin: 1rem 0;">
+              <h2 style="color: #0CF2C8;">NeuroScan AI — Patient Alert</h2>
+              <p>Hello Doctor,</p>
+              <p>Your patient <strong>{patient_name}</strong> ({username}) has a new scan result.</p>
+              <div style="background: #1a1f2e; padding: 1rem; border-radius: 8px; border-left: 4px solid #FF5757; margin: 1rem 0;">
                 <p style="margin: 0; color: #FF5757; font-weight: bold;">⚠ Tumor Detected</p>
                 <p style="margin: 0.5rem 0 0;">Prediction: <strong style="color: #FF5757;">{pred_label}</strong></p>
                 <p style="margin: 0.5rem 0 0;">Confidence: <strong>{conf_pct}%</strong></p>
                 <p style="margin: 0.5rem 0 0;">Mode: {mode}</p>
-            </div>
-            <p style="color: #FF5757;"><strong>Please consult your doctor immediately.</strong></p>
-            <p style="color: #888; font-size: 0.8rem;">This is an AI-generated result for research purposes only. Not a clinical diagnosis.</p>
+              </div>
+              <p>Please review and follow up with your patient.</p>
+              <p style="color: #888; font-size: 0.8rem;">NeuroScan AI — Research prototype · Not for clinical use.</p>
             </div>
             """
-            send_email(username, f"⚠ Tumor Detected — {pred_label} ({conf_pct}% confidence)", patient_html)
+            send_email(doctor_username, f"⚠ Patient Alert — {patient_name} · {pred_label} Detected", doctor_html)
 
-            # Doctor email
-            if doctor_username:
-                doctor_html = f"""
-                <div style="font-family: monospace; background: #080c14; color: #e0e0e0; padding: 2rem; border-radius: 12px; max-width: 600px;">
-                <h2 style="color: #0CF2C8;">NeuroScan AI — Patient Alert</h2>
-                <p>Hello Doctor,</p>
-                <p>Your patient <strong>{patient_name}</strong> ({username}) has a new scan result.</p>
-                <div style="background: #1a1f2e; padding: 1rem; border-radius: 8px; border-left: 4px solid #FF5757; margin: 1rem 0;">
-                    <p style="margin: 0; color: #FF5757; font-weight: bold;">⚠ Tumor Detected</p>
-                    <p style="margin: 0.5rem 0 0;">Prediction: <strong style="color: #FF5757;">{pred_label}</strong></p>
-                    <p style="margin: 0.5rem 0 0;">Confidence: <strong>{conf_pct}%</strong></p>
-                    <p style="margin: 0.5rem 0 0;">Mode: {mode}</p>
-                </div>
-                <p>Please review and follow up with your patient.</p>
-                <p style="color: #888; font-size: 0.8rem;">NeuroScan AI — Research prototype · Not for clinical use.</p>
-                </div>
-                """
-                send_email(doctor_username, f"⚠ Patient Alert — {patient_name} · {pred_label} Detected", doctor_html)
+    except Exception as e:
+        print(f"Email error: {e}")
 
-        except Exception as e:
-            print(f"Email error: {e}")
     # Generate preprocessing pipeline for DICOM files
     if dicom_info:
         try:
