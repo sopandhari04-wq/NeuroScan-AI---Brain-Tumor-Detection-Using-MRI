@@ -942,8 +942,10 @@ async def predict_single(
 
     
     if predicted_cls != 'notumor':
-        await send_tumor_alert_email(username, predicted_cls, confidence, "Single MRI")
-
+        import asyncio
+        loop = asyncio.get_event_loop()
+        loop.run_in_executor(None, lambda: asyncio.run(send_tumor_alert_email(username, predicted_cls, confidence, "Single MRI")))
+        
 async def send_tumor_alert_email(username: str, prediction: str, confidence: float, mode: str):
     try:
         import smtplib
