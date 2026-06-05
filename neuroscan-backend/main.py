@@ -940,6 +940,10 @@ async def predict_single(
     overlay_b64 = None
     preprocessing = None
 
+    
+    if predicted_cls != 'notumor':
+        await send_tumor_alert_email(username, predicted_cls, confidence, "Single MRI")
+
 async def send_tumor_alert_email(username: str, prediction: str, confidence: float, mode: str):
     try:
         import smtplib
