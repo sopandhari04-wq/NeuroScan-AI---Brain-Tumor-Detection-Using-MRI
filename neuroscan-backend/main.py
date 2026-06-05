@@ -945,8 +945,8 @@ async def predict_single(
         import asyncio
         loop = asyncio.get_event_loop()
         loop.run_in_executor(None, lambda: asyncio.run(send_tumor_alert_email(username, predicted_cls, confidence, "Single MRI")))
-        
-async def send_tumor_alert_email(username: str, prediction: str, confidence: float, mode: str):
+
+def send_tumor_alert_email(username: str, prediction: str, confidence: float, mode: str):
     try:
         import smtplib
         from email.mime.multipart import MIMEMultipart
@@ -1135,47 +1135,47 @@ async def predict_fusion(
     preprocessing = None
 
     if predicted_cls != 'notumor':
-        await send_tumor_alert_email(username, predicted_cls, confidence, "Multi-Modal Fusion")
+        import threading
+        threading.Thread(
+            target=lambda: asyncio.run(send_tumor_alert_email(username, predicted_cls, confidence, "Multi-Modal Fusion")),
+            daemon=True
+        ).start()
 
-        if predicted_cls != 'notumor':
-            import asyncio
-            asyncio.create_task(send_tumor_alert_email(username, predicted_cls, confidence, "Multi-Modal Fusion"))
-        
 
         # Generate preprocessing pipeline for DICOM files
-        if dicom_info:
+    if dicom_info:
             # Generate preprocessing pipeline for ALL files
-            try:
-                preprocessing = generate_preprocessing_pipeline(pil_img)
-            except Exception as e:
-                print(f"Preprocessing pipeline error: {e}")
+        try:
+            preprocessing = generate_preprocessing_pipeline(pil_img)
+        except Exception as e:
+            print(f"Preprocessing pipeline error: {e}")
         
-        if gradcam:
-            try:
-                feat_model  = get_feat_model()
-                cam         = compute_gradcam(feat_model, fused_input)
-                cam_data    = analyze_gradcam(cam, predicted_cls, confidence)
-                overlay_img = overlay_gradcam(fused_pil, cam)
-                buf = BytesIO()
-                overlay_img.save(buf, format="PNG")
-                import base64
-                overlay_b64 = base64.b64encode(buf.getvalue()).decode()
-            except Exception as e:
-                import traceback
-                print(f"Grad-CAM error: {e}")
-                traceback.print_exc()
+    if gradcam:
+        try:
+            feat_model  = get_feat_model()
+            cam         = compute_gradcam(feat_model, fused_input)
+            cam_data    = analyze_gradcam(cam, predicted_cls, confidence)
+            overlay_img = overlay_gradcam(fused_pil, cam)
+            buf = BytesIO()
+            overlay_img.save(buf, format="PNG")
+            import base64
+            overlay_b64 = base64.b64encode(buf.getvalue()).decode()
+        except Exception as e:
+            import traceback
+            print(f"Grad-CAM error: {e}")
+            traceback.print_exc()
 
-        return {
-            "prediction":    predicted_cls,
-            "display_name":  CLASS_DISPLAY[predicted_cls],
-            "confidence":    confidence,
-            "color":         CLASS_COLORS[predicted_cls],
-            "probabilities": {CLASS_NAMES[i]: float(probs[i]) for i in range(len(CLASS_NAMES))},
-            "tumor_info":    TUMOR_DB[predicted_cls],
-            "gradcam":       cam_data,
-            "overlay_image": overlay_b64,
-            "preprocessing": preprocessing,
-        }
+    return {
+        "prediction":    predicted_cls,
+        "display_name":  CLASS_DISPLAY[predicted_cls],
+        "confidence":    confidence,
+        "color":         CLASS_COLORS[predicted_cls],
+        "probabilities": {CLASS_NAMES[i]: float(probs[i]) for i in range(len(CLASS_NAMES))},
+        "tumor_info":    TUMOR_DB[predicted_cls],
+        "gradcam":       cam_data,
+        "overlay_image": overlay_b64,
+        "preprocessing": preprocessing,
+    }
 
 # ── PDF Report ─────────────────────────────────────────────────────────────────
 @app.post("/api/report")
