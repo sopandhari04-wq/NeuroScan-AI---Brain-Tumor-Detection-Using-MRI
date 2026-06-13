@@ -1,10 +1,9 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../App'
 
-
 const STATS = [
   { val: '4', label: 'Tumor Classes' },
-  { val: '3K+', label: 'Training Scans' },
+  { val: '15+', label: 'AI Features' },
   { val: '95%+', label: 'Accuracy' },
   { val: 'XAI', label: 'Explainability' },
 ]
@@ -17,12 +16,21 @@ const TUMOR_CLASSES = [
 ]
 
 const FEATURES_PREVIEW = [
-  { icon: '🧠', title: 'Grad-CAM XAI', desc: 'Visual heatmaps show exactly where the AI is looking — region analysis, intensity mapping, and focus patterns.' },
-  { icon: '🧬', title: 'Multi-Modal Fusion', desc: 'Combine T1, T1ce, T2, and FLAIR sequences into a fused 4-channel tensor for richer classification.' },
-  { icon: '📋', title: 'AI Radiology Report', desc: 'Auto-generated clinical report with imaging characteristics, urgency assessment, and follow-up recommendations.' },
-  { icon: '💊', title: 'Treatment Guide', desc: 'Tumor-specific treatment options for educational reference.' },
-  { icon: '📄', title: 'PDF Export', desc: 'Download a professional clinical report with all findings and scan history.' },
-  { icon: '📊', title: 'Scan Dashboard', desc: 'Track your scan history, confidence trends, and classification analytics.' },
+  { icon: '🏥', title: 'DICOM Support',          desc: 'Upload anonymized .dcm files with automatic PHI stripping, modality validation, and metadata display.' },
+  { icon: '🔬', title: 'Preprocessing Pipeline', desc: 'Raw → Normalized → Skull-Stripped → CLAHE Enhanced — see every step the AI sees before classification.' },
+  { icon: '🧠', title: 'Grad-CAM XAI',           desc: 'Visual heatmaps show exactly where the AI is looking — region analysis, intensity mapping, and focus patterns.' },
+  { icon: '📐', title: 'Sub-Region Segmentation', desc: 'ET / TC / WT tumor sub-regions with radiomics — volume, diameter, sphericity, surface-to-volume ratio.' },
+  { icon: '🧬', title: 'Multi-Modal Fusion',      desc: 'Combine T1, T1ce, T2, and FLAIR sequences into a fused 4-channel tensor for richer classification.' },
+  { icon: '🌐', title: '3D Brain Visualization',  desc: 'Interactive rotatable 3D model showing tumor location, ET/TC/WT regions, and radiomics overlay.' },
+  { icon: '✏️', title: 'HITL Annotation',         desc: 'Doctors draw corrections directly on Grad-CAM overlays, with notes saved for clinical record.' },
+  { icon: '🩺', title: 'AI Scan Q&A Chat',        desc: 'Ask natural-language questions about any scan — powered by an LLM with full scan context.' },
+  { icon: '👥', title: 'Doctor–Patient Workflow', desc: 'Admins assign patients to doctors; doctors track assigned patients with risk badges and scan history.' },
+  { icon: '📈', title: 'Longitudinal Timeline',   desc: "Track a patient's scan history over time — confidence trends and classification changes." },
+  { icon: '🔁', title: 'Scan Comparison',         desc: 'Side-by-side comparison of two scans to monitor disease progression or treatment response.' },
+  { icon: '📊', title: 'Statistics Dashboard',    desc: 'System-wide analytics — class distribution, confidence trends, and scan volume over time.' },
+  { icon: '📋', title: 'AI Radiology Report',     desc: 'Auto-generated clinical report with imaging characteristics, urgency assessment, and follow-up recommendations.' },
+  { icon: '💊', title: 'Treatment Guide',         desc: 'Tumor-specific treatment options for educational reference.' },
+  { icon: '📄', title: 'PDF Export',              desc: 'Download a professional clinical report with all findings, Grad-CAM, and scan history.' },
 ]
 
 const PIPELINE = [
