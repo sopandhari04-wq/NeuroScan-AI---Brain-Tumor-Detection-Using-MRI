@@ -24,6 +24,15 @@ const FEATURES_PREVIEW = [
   { icon: '📊', title: 'Scan Dashboard', desc: 'Track your scan history, confidence trends, and classification analytics.' },
 ]
 
+const PIPELINE = [
+  { tag: 'INPUT',    title: 'DICOM Upload',          desc: 'Anonymized .dcm ingestion with modality validation', color: '#7B82F5' },
+  { tag: 'PREP',     title: '4-Step Preprocessing',  desc: 'Normalize · skull-strip · CLAHE enhance',             color: '#FFAD3B' },
+  { tag: 'AI',       title: 'CNN Classification',    desc: 'Glioma · meningioma · pituitary · no tumor',          color: '#0CF2C8' },
+  { tag: 'XAI',      title: 'Grad-CAM + Radiomics',  desc: 'Sub-region ET/TC/WT segmentation & volume metrics',   color: '#FF5757' },
+  { tag: 'VISUAL',   title: '3D Brain Render',       desc: 'Interactive rotatable tumor visualization',           color: '#7B82F5' },
+  { tag: 'REVIEW',   title: 'HITL Annotation',       desc: 'Doctors refine AI findings, saved for record',        color: '#0CF2C8' },
+]
+
 export default function Home() {
   const { user } = useAuth()
 
@@ -34,8 +43,17 @@ export default function Home() {
       <section style={{
         minHeight: '92vh', display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center',
-        textAlign: 'center', padding: '4rem 1.5rem 3rem',
+        textAlign: 'center', padding: '4rem 1.5rem 3rem', position: 'relative', overflow: 'hidden',
       }}>
+        {/* Ambient scan grid background */}
+        <div aria-hidden="true" style={{
+          position: 'absolute', inset: 0, opacity: 0.5,
+          backgroundImage: 'linear-gradient(rgba(12,242,200,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(12,242,200,0.05) 1px, transparent 1px)',
+          backgroundSize: '42px 42px',
+          maskImage: 'radial-gradient(ellipse 60% 50% at 50% 35%, black 0%, transparent 75%)',
+          WebkitMaskImage: 'radial-gradient(ellipse 60% 50% at 50% 35%, black 0%, transparent 75%)',
+        }} />
+
         {/* Pill */}
         <div className="fade-up" style={{
           display: 'inline-flex', alignItems: 'center', gap: '0.45rem',
@@ -43,6 +61,7 @@ export default function Home() {
           color: 'var(--teal)', fontFamily: 'var(--font-mono)',
           fontSize: '0.6rem', letterSpacing: '0.26em', textTransform: 'uppercase',
           padding: '0.32rem 0.9rem', borderRadius: '99px', marginBottom: '2rem',
+          position: 'relative', zIndex: 1,
         }}>
           <span style={{
             width: 5, height: 5, borderRadius: '50%', background: 'var(--teal)',
@@ -52,7 +71,7 @@ export default function Home() {
         </div>
 
         {/* Headline */}
-        <div className="fade-up fade-up-1" style={{ marginBottom: '0.4rem' }}>
+        <div className="fade-up fade-up-1" style={{ marginBottom: '0.4rem', position: 'relative', zIndex: 1 }}>
           <span style={{
             fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontWeight: 300,
             fontSize: 'clamp(1rem, 2.5vw, 1.2rem)', color: 'rgba(12,242,200,0.55)',
@@ -70,7 +89,8 @@ export default function Home() {
 
         <p className="fade-up fade-up-2" style={{
           fontSize: 'clamp(0.95rem, 2vw, 1.1rem)', color: 'var(--text-2)',
-          maxWidth: 520, margin: '1rem auto 2.5rem', lineHeight: 1.75
+          maxWidth: 520, margin: '1rem auto 2.5rem', lineHeight: 1.75,
+          position: 'relative', zIndex: 1,
         }}>
           AI-powered brain tumor classification from MRI scans — with Grad-CAM
           explainability, radiology reports, and treatment guidance.
@@ -79,7 +99,7 @@ export default function Home() {
         {/* CTA */}
         <div className="fade-up fade-up-3" style={{
           display: 'flex', gap: '0.75rem', flexWrap: 'wrap',
-          justifyContent: 'center', marginBottom: '4rem'
+          justifyContent: 'center', marginBottom: '3rem', position: 'relative', zIndex: 1,
         }}>
           <Link to={user ? '/scanner' : '/login'} className="btn btn-primary"
             style={{ fontSize: '0.9rem', padding: '0.75rem 2rem' }}>
@@ -91,13 +111,79 @@ export default function Home() {
           </Link>
         </div>
 
+        {/* Animated scan visual */}
+        <div className="fade-up fade-up-4" style={{
+          position: 'relative', width: 'min(360px, 80vw)', height: 'min(360px, 80vw)',
+          marginBottom: '3rem', zIndex: 1,
+        }}>
+          {/* Brain outline */}
+          <svg viewBox="0 0 200 200" style={{ width: '100%', height: '100%' }} aria-hidden="true">
+            <defs>
+              <radialGradient id="brainGlow" cx="50%" cy="45%" r="55%">
+                <stop offset="0%" stopColor="rgba(12,242,200,0.12)" />
+                <stop offset="100%" stopColor="rgba(12,242,200,0)" />
+              </radialGradient>
+              <clipPath id="brainClip">
+                <path d="M100,28 C135,28 162,48 168,78 C174,106 164,128 148,144 C140,152 138,162 130,168 C118,176 100,176 88,168 C78,162 70,154 58,148 C40,138 28,116 32,90 C36,62 62,28 100,28 Z" />
+              </clipPath>
+            </defs>
+
+            <circle cx="100" cy="100" r="95" fill="url(#brainGlow)" />
+
+            {/* Brain shape */}
+            <path d="M100,28 C135,28 162,48 168,78 C174,106 164,128 148,144 C140,152 138,162 130,168 C118,176 100,176 88,168 C78,162 70,154 58,148 C40,138 28,116 32,90 C36,62 62,28 100,28 Z"
+              fill="none" stroke="rgba(12,242,200,0.35)" strokeWidth="1.5" />
+
+            {/* Cortex folds */}
+            {[
+              'M55,55 C70,48 90,52 100,62 C108,70 102,82 90,80',
+              'M120,50 C140,55 152,72 150,90 C148,105 134,112 124,104',
+              'M48,95 C42,112 50,130 68,138 C82,144 92,134 88,122',
+              'M130,118 C144,124 148,140 136,152 C126,160 112,156 110,144',
+              'M70,160 C85,168 110,168 125,158',
+              'M75,90 C88,84 104,86 112,96 C118,104 112,114 100,112',
+            ].map((d, i) => (
+              <path key={i} d={d} fill="none" stroke="rgba(12,242,200,0.18)" strokeWidth="1" />
+            ))}
+
+            {/* Tumor marker (pulsing) */}
+            <circle cx="118" cy="92" r="7" fill="rgba(255,87,87,0.25)">
+              <animate attributeName="r" values="6;10;6" dur="2.4s" repeatCount="indefinite" />
+              <animate attributeName="opacity" values="0.5;0.15;0.5" dur="2.4s" repeatCount="indefinite" />
+            </circle>
+            <circle cx="118" cy="92" r="3.5" fill="#FF5757" />
+
+            {/* Scan line, clipped to brain shape */}
+            <g clipPath="url(#brainClip)">
+              <rect x="0" y="0" width="200" height="3" fill="rgba(12,242,200,0.6)">
+                <animate attributeName="y" values="20;180;20" dur="3.6s" repeatCount="indefinite" />
+              </rect>
+              <rect x="0" y="0" width="200" height="40" fill="rgba(12,242,200,0.06)">
+                <animate attributeName="y" values="-10;150;-10" dur="3.6s" repeatCount="indefinite" />
+              </rect>
+            </g>
+          </svg>
+
+          {/* Corner labels */}
+          <div style={{
+            position: 'absolute', top: '8%', left: '4%',
+            fontFamily: 'var(--font-mono)', fontSize: '0.55rem', letterSpacing: '0.15em',
+            color: 'var(--text-3)', textTransform: 'uppercase',
+          }}>Sagittal · T1</div>
+          <div style={{
+            position: 'absolute', bottom: '6%', right: '2%',
+            fontFamily: 'var(--font-mono)', fontSize: '0.55rem', letterSpacing: '0.15em',
+            color: '#FF5757', textTransform: 'uppercase',
+          }}>● ROI Detected</div>
+        </div>
+
         {/* Stats */}
         <div className="fade-up fade-up-4" style={{
           display: 'flex', gap: '1px',
           background: 'rgba(255,255,255,0.04)',
           border: '1px solid rgba(255,255,255,0.07)',
           borderRadius: '12px', overflow: 'hidden',
-          maxWidth: 480, width: '100%', margin: '0 auto',
+          maxWidth: 480, width: '100%', margin: '0 auto', position: 'relative', zIndex: 1,
         }}>
           {STATS.map((s, i) => (
             <div key={i} style={{
@@ -114,6 +200,50 @@ export default function Home() {
                 letterSpacing: '0.16em', color: 'var(--text-3)',
                 textTransform: 'uppercase', marginTop: '0.3rem'
               }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Pipeline ── */}
+      <section style={{ padding: '4rem 2rem', maxWidth: 1000, margin: '0 auto' }}>
+        <p className="eyebrow" style={{ textAlign: 'center', marginBottom: '0.75rem' }}>The Pipeline</p>
+        <h2 style={{
+          textAlign: 'center', fontSize: 'clamp(1.6rem, 3.5vw, 2.2rem)',
+          letterSpacing: '-0.02em', marginBottom: '0.75rem'
+        }}>
+          From scan to <span style={{ color: 'var(--teal)' }}>insight</span>, in six steps
+        </h2>
+        <p style={{
+          textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.7rem',
+          color: 'var(--text-3)', marginBottom: '2.5rem', maxWidth: 480, marginLeft: 'auto', marginRight: 'auto',
+        }}>
+          Every uploaded scan moves through the same clinical-grade pipeline — fully automated, fully explainable.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+          {PIPELINE.map((p, i) => (
+            <div key={p.title} className="card" style={{ padding: '1.4rem 1.2rem', position: 'relative' }}>
+              <div style={{
+                position: 'absolute', top: 0, left: '15%', right: '15%', height: 1,
+                background: `linear-gradient(90deg, transparent, ${p.color}88, transparent)`
+              }} />
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
+                <span style={{
+                  fontFamily: 'var(--font-mono)', fontSize: '0.55rem', letterSpacing: '0.2em',
+                  color: p.color, textTransform: 'uppercase', fontWeight: 700,
+                }}>{p.tag}</span>
+                <span style={{
+                  fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--text-3)',
+                }}>{String(i + 1).padStart(2, '0')}</span>
+              </div>
+              <div style={{
+                fontFamily: 'var(--font-sans)', fontWeight: 600,
+                fontSize: '0.95rem', color: 'var(--text)', marginBottom: '0.4rem'
+              }}>{p.title}</div>
+              <div style={{
+                fontFamily: 'var(--font-mono)', fontSize: '0.65rem',
+                color: 'var(--text-3)', lineHeight: 1.7
+              }}>{p.desc}</div>
             </div>
           ))}
         </div>
