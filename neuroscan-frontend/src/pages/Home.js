@@ -63,6 +63,65 @@ export default function Home() {
           WebkitMaskImage: 'radial-gradient(ellipse 60% 50% at 50% 35%, black 0%, transparent 75%)',
         }} />
 
+        {/* Side glow orbs */}
+        <div aria-hidden="true" style={{
+          position: 'absolute', top: '12%', left: '-8%', width: 360, height: 360,
+          background: 'radial-gradient(circle, rgba(12,242,200,0.10), transparent 70%)',
+          borderRadius: '50%', filter: 'blur(20px)', pointerEvents: 'none',
+        }} />
+        <div aria-hidden="true" style={{
+          position: 'absolute', bottom: '10%', right: '-10%', width: 420, height: 420,
+          background: 'radial-gradient(circle, rgba(255,87,87,0.07), transparent 70%)',
+          borderRadius: '50%', filter: 'blur(20px)', pointerEvents: 'none',
+        }} />
+        <div aria-hidden="true" style={{
+          position: 'absolute', top: '55%', right: '4%', width: 200, height: 200,
+          background: 'radial-gradient(circle, rgba(123,130,245,0.08), transparent 70%)',
+          borderRadius: '50%', filter: 'blur(16px)', pointerEvents: 'none',
+        }} />
+
+        {/* Floating data chips (decorative, hidden on small screens) */}
+        <div className="hud-callout-md" aria-hidden="true" style={{
+          position: 'absolute', top: '16%', left: '6%',
+          fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '0.15em',
+          color: 'var(--text-3)', textTransform: 'uppercase', textAlign: 'left',
+          border: '1px solid rgba(12,242,200,0.15)', borderRadius: '8px',
+          padding: '0.5rem 0.8rem', background: 'rgba(10,13,24,0.5)',
+        }}>
+          <div style={{ color: 'var(--teal)', marginBottom: '0.2rem' }}>● Grad-CAM XAI</div>
+          Region-level attention maps
+        </div>
+        <div className="hud-callout-md" aria-hidden="true" style={{
+          position: 'absolute', top: '34%', right: '5%',
+          fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '0.15em',
+          color: 'var(--text-3)', textTransform: 'uppercase', textAlign: 'left',
+          border: '1px solid rgba(255,87,87,0.15)', borderRadius: '8px',
+          padding: '0.5rem 0.8rem', background: 'rgba(10,13,24,0.5)',
+        }}>
+          <div style={{ color: '#FF5757', marginBottom: '0.2rem' }}>● ET / TC / WT</div>
+          Sub-region radiomics
+        </div>
+        <div className="hud-callout-md" aria-hidden="true" style={{
+          position: 'absolute', bottom: '20%', left: '5%',
+          fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '0.15em',
+          color: 'var(--text-3)', textTransform: 'uppercase', textAlign: 'left',
+          border: '1px solid rgba(123,130,245,0.15)', borderRadius: '8px',
+          padding: '0.5rem 0.8rem', background: 'rgba(10,13,24,0.5)',
+        }}>
+          <div style={{ color: '#7B82F5', marginBottom: '0.2rem' }}>● DICOM Ready</div>
+          PHI-anonymized ingestion
+        </div>
+        <div className="hud-callout-md" aria-hidden="true" style={{
+          position: 'absolute', bottom: '34%', right: '6%',
+          fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '0.15em',
+          color: 'var(--text-3)', textTransform: 'uppercase', textAlign: 'left',
+          border: '1px solid rgba(12,242,200,0.15)', borderRadius: '8px',
+          padding: '0.5rem 0.8rem', background: 'rgba(10,13,24,0.5)',
+        }}>
+          <div style={{ color: 'var(--teal)', marginBottom: '0.2rem' }}>● 3D Visualization</div>
+          Interactive tumor render
+        </div>
+
         {/* Pill */}
         <div className="fade-up" style={{
           display: 'inline-flex', alignItems: 'center', gap: '0.45rem',
@@ -149,7 +208,7 @@ export default function Home() {
       </section>
 
       {/* ── Pipeline ── */}
-      <section style={{ padding: '4rem 2rem', maxWidth: 1000, margin: '0 auto' }}>
+      <section style={{ padding: '4rem 2rem', maxWidth: 1200, margin: '0 auto' }}>
         <p className="eyebrow" style={{ textAlign: 'center', marginBottom: '0.75rem' }}>The Pipeline</p>
         <h2 style={{
           textAlign: 'center', fontSize: 'clamp(1.6rem, 3.5vw, 2.2rem)',
@@ -163,7 +222,7 @@ export default function Home() {
         }}>
           Every uploaded scan moves through the same clinical-grade pipeline — fully automated, fully explainable.
         </p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
           {PIPELINE.map((p, i) => (
             <div key={p.title} className="card" style={{ padding: '1.4rem 1.2rem', position: 'relative' }}>
               <div style={{
@@ -193,7 +252,7 @@ export default function Home() {
       </section>
 
       {/* ── Tumor Classes ── */}
-      <section style={{ padding: '4rem 2rem', maxWidth: 900, margin: '0 auto' }}>
+      <section style={{ padding: '4rem 2rem', maxWidth: 1200, margin: '0 auto' }}>
         <p className="eyebrow" style={{ textAlign: 'center', marginBottom: '0.75rem' }}>Classification Targets</p>
         <h2 style={{
           textAlign: 'center', fontSize: 'clamp(1.6rem, 3.5vw, 2.2rem)',
@@ -201,7 +260,7 @@ export default function Home() {
         }}>
           4 classes, <span style={{ color: 'var(--teal)' }}>instantly classified</span>
         </h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem' }}>
           {TUMOR_CLASSES.map((t) => (
             <div key={t.name} className="card" style={{ padding: '1.4rem 1.2rem' }}>
               <div style={{
@@ -222,7 +281,7 @@ export default function Home() {
       </section>
 
       {/* ── Features Grid ── */}
-      <section style={{ padding: '4rem 2rem', maxWidth: 900, margin: '0 auto' }}>
+      <section style={{ padding: '4rem 2rem', maxWidth: 1200, margin: '0 auto' }}>
         <p className="eyebrow" style={{ textAlign: 'center', marginBottom: '0.75rem' }}>What's Inside</p>
         <h2 style={{
           textAlign: 'center', fontSize: 'clamp(1.6rem, 3.5vw, 2.2rem)',
@@ -230,7 +289,7 @@ export default function Home() {
         }}>
           Everything a <span style={{ color: 'var(--teal)' }}>clinician needs</span>
         </h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
           {FEATURES_PREVIEW.map((f) => (
             <div key={f.title} className="card" style={{ padding: '1.4rem' }}>
               <div style={{ fontSize: '1.4rem', marginBottom: '0.75rem' }}>{f.icon}</div>
