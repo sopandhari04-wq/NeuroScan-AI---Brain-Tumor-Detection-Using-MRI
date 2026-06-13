@@ -124,8 +124,6 @@ export default function HeroBrain3D() {
     brainGroup.add(buildSulci(-1, 16))
 
     // Longitudinal fissure line (gap between hemispheres, top arc)
-    const fissurePts = new THREE.EllipseCurve(0, 0, 0.05, 1.18, 0, Math.PI, false, 0)
-      .getPoints(30).map(p => new THREE.Vector3(0, p.y, p.x * 1.3 - 1.3 * 0))
     // simple straight fissure along z at x=0, y top
     const fissureGeo = new THREE.BufferGeometry().setFromPoints([
       new THREE.Vector3(0, 0.85, -1.2),
