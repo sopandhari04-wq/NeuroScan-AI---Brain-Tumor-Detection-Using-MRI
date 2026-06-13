@@ -151,3 +151,12 @@ a:hover { opacity: 0.8; }
 .fade-up-2 { animation-delay: 0.2s; }
 .fade-up-3 { animation-delay: 0.3s; }
 .fade-up-4 { animation-delay: 0.4s; }
+
+.hud-callout-md {
+  display: block;
+}
+@media (max-width: 700px) {
+  .hud-callout-md {
+    display: none;
+  }
+}
