@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../App'
-import HeroBrain3D from './HeroBrain3D'
+
 
 const STATS = [
   { val: '4', label: 'Tumor Classes' },
@@ -111,66 +111,6 @@ export default function Home() {
             Explore Features
           </Link>
         </div>
-
-        {/* Animated 3D scan visual with HUD callouts */}
-        <div className="fade-up fade-up-4" style={{
-          position: 'relative', width: 'min(680px, 94vw)', height: 'min(460px, 64vw)',
-          marginBottom: '3rem', zIndex: 1,
-          border: '1px solid rgba(12,242,200,0.12)', borderRadius: '16px',
-          background: 'radial-gradient(ellipse at center, rgba(12,242,200,0.05), transparent 70%)',
-          overflow: 'hidden',
-        }}>
-          <HeroBrain3D />
-
-          {/* Corner labels */}
-          <div style={{
-            position: 'absolute', top: '4%', left: '4%',
-            fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '0.2em',
-            color: 'var(--text-3)', textTransform: 'uppercase',
-          }}>Sagittal · T1 · Live Render</div>
-          <div style={{
-            position: 'absolute', top: '4%', right: '4%',
-            fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '0.2em',
-            color: 'var(--teal)', textTransform: 'uppercase',
-          }}>Drag to explore in Scanner</div>
-
-          {/* HUD callout — top left: Region */}
-          <div style={{
-            position: 'absolute', top: '14%', left: '5%', maxWidth: 150,
-            display: 'none',
-          }} className="hud-callout-md">
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.58rem', color: 'var(--teal)', letterSpacing: '0.12em', textTransform: 'uppercase', borderBottom: '1px solid rgba(12,242,200,0.25)', paddingBottom: '0.2rem', marginBottom: '0.2rem' }}>Region Analysis</div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.56rem', color: 'var(--text-3)', lineHeight: 1.6 }}>Superior Right · Frontal Lobe</div>
-          </div>
-
-          {/* HUD callout — tumor pointer */}
-          <div style={{
-            position: 'absolute', top: '22%', right: '8%', maxWidth: 160,
-          }} className="hud-callout-md">
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.58rem', color: '#FF6A33', letterSpacing: '0.12em', textTransform: 'uppercase', borderBottom: '1px solid rgba(255,106,51,0.3)', paddingBottom: '0.2rem', marginBottom: '0.2rem' }}>⚠ Enhancing Tumor</div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.56rem', color: 'var(--text-3)', lineHeight: 1.6 }}>Vol: 2.3 cm³ · Grad-CAM 94%</div>
-          </div>
-
-          {/* HUD callout — bottom left: radiomics */}
-          <div style={{
-            position: 'absolute', bottom: '12%', left: '5%', maxWidth: 170,
-          }} className="hud-callout-md">
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.58rem', color: 'var(--teal)', letterSpacing: '0.12em', textTransform: 'uppercase', borderBottom: '1px solid rgba(12,242,200,0.25)', paddingBottom: '0.2rem', marginBottom: '0.2rem' }}>Radiomics</div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.56rem', color: 'var(--text-3)', lineHeight: 1.6 }}>Sphericity 0.81 · SVR 1.4</div>
-          </div>
-
-          {/* ROI badge bottom right */}
-          <div style={{
-            position: 'absolute', bottom: '4%', right: '4%',
-            fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '0.2em',
-            color: '#FF5757', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.4rem'
-          }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#FF5757', animation: 'blink 2.4s ease-in-out infinite' }} />
-            ROI Detected
-          </div>
-        </div>
-
-
 
         {/* Stats */}
         <div className="fade-up fade-up-4" style={{
