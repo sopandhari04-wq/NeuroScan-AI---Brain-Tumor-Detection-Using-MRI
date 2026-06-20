@@ -824,7 +824,7 @@ def calculate_volume_trend(scan_history, predicted_cls):
     }
 def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_history, cam_analysis=None,
                   patient_name=None, patient_age=None, patient_gender=None, who_grade=None, probabilities=None,
-                  cdss_result=None, original_img=None, overlay_img=None):
+                  cdss_result=None, original_img=None, overlay_img=None, volume_trend=None):
     import hashlib
     buffer  = BytesIO()
     doc     = SimpleDocTemplate(buffer, pagesize=letter, topMargin=36, bottomMargin=36, leftMargin=46, rightMargin=46)
@@ -1144,6 +1144,45 @@ def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_hist
 
     # ── Page break before historical section ──
     elems.append(Spacer(1, 10))
+
+    # ── 5b. Longitudinal Volume Trend Analytics ──
+    if volume_trend and volume_trend.get('has_trend'):
+        elems.append(Paragraph("5b.  Longitudinal Volume Trend Analytics", section_s))
+
+        trend_color = colors.HexColor(volume_trend['trend_color'])
+        alert_box = Table([[
+            Paragraph(f"<b>{volume_trend['trend_label']}</b> — {volume_trend['alert']}", ParagraphStyle('trend_alert', fontSize=8.6, textColor=trend_color, leading=12)),
+        ]], colWidths=[500])
+        alert_box.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F7FAFC')),
+            ('BOX', (0,0), (-1,-1), 1, trend_color),
+            ('PADDING', (0,0), (-1,-1), 8),
+        ]))
+        elems += [alert_box, Spacer(1, 6)]
+
+        trend_rows = [["Volume (Previous)", f"{volume_trend['points'][-2]['est_volume_cm3']} cm³", "Volume (Current)", f"{volume_trend['points'][-1]['est_volume_cm3']} cm³"]]
+        trend_rows.append(["Absolute Δ", f"{'+' if volume_trend['delta_abs'] >= 0 else ''}{volume_trend['delta_abs']} cm³", "Percent Δ", f"{'+' if volume_trend['delta_pct'] >= 0 else ''}{volume_trend['delta_pct']}%"])
+        trend_t = Table(trend_rows, colWidths=[115, 130, 115, 140])
+        trend_t.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (0,-1), colors.HexColor('#EEF9F7')),
+            ('BACKGROUND', (2,0), (2,-1), colors.HexColor('#EEF9F7')),
+            ('TEXTCOLOR',  (0,0), (0,-1), colors.HexColor('#007A6E')),
+            ('TEXTCOLOR',  (2,0), (2,-1), colors.HexColor('#007A6E')),
+            ('FONTNAME',   (0,0), (0,-1), 'Helvetica-Bold'),
+            ('FONTNAME',   (2,0), (2,-1), 'Helvetica-Bold'),
+            ('FONTSIZE',   (0,0), (-1,-1), 8.3),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#D0EDE9')),
+            ('PADDING', (0,0), (-1,-1), 7),
+        ]))
+        elems += [trend_t, Spacer(1, 6)]
+
+        elems.append(Paragraph(f"<i>Based on {volume_trend['scan_count']} same-tumor-type scans with measurable volume. {volume_trend['disclaimer']}</i>",
+            ParagraphStyle('trend_disc', fontSize=7, textColor=colors.HexColor('#8A8A8A'), leading=11)))
+        elems.append(Spacer(1, 10))
+    elif volume_trend and not volume_trend.get('has_trend'):
+        elems.append(Paragraph("5b.  Longitudinal Volume Trend Analytics", section_s))
+        elems.append(Paragraph(f"<i>{volume_trend.get('message','')}</i>", ParagraphStyle('trend_none', fontSize=8, textColor=colors.HexColor('#8A8A8A'), leading=12)))
+        elems.append(Spacer(1, 10))
 
     # ── 6. Longitudinal Scan History (Session Record) ──
     if scan_history:
