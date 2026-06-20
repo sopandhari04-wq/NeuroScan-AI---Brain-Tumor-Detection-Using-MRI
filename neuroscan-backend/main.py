@@ -7,7 +7,7 @@ from datetime import datetime, timezone, timedelta
 from io import BytesIO
 import matplotlib.pyplot as plt
 
-from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
+from fastapi import FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -1358,12 +1358,12 @@ async def predict_fusion(
 @app.post("/api/report")
 async def download_report(
     file:           UploadFile = File(...),
-    username:       str = "anonymous",
-    name:           str = "User",
-    mode:           str = "Single MRI",
-    patient_name:   str = "Not provided",
-    patient_age:    str = "Not provided",
-    patient_gender: str = "Not specified",
+    username:       str = Form("anonymous"),
+    name:           str = Form("User"),
+    mode:           str = Form("Single MRI"),
+    patient_name:   str = Form("Not provided"),
+    patient_age:    str = Form("Not provided"),
+    patient_gender: str = Form("Not specified"),
 ):
     contents = await file.read()
    
