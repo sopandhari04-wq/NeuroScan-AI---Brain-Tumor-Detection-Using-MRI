@@ -7,7 +7,7 @@ from datetime import datetime, timezone, timedelta
 from io import BytesIO
 import matplotlib.pyplot as plt
 
-from fastapi import FastAPI, File, UploadFile, HTTPException, Request
+from fastapi import FastAPI, File, UploadFile, HTTPException, Request, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
