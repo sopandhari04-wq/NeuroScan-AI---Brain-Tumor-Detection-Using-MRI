@@ -16,7 +16,7 @@ from typing import Optional
 import tensorflow as tf
 from tensorflow.keras.preprocessing import image as keras_image
 
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
@@ -665,88 +665,187 @@ def get_user_scans(username):
     except:
         return []
 
-def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_history, cam_analysis=None, patient_name=None, patient_age=None, patient_gender=None):
+def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_history, cam_analysis=None,
+                  patient_name=None, patient_age=None, patient_gender=None, who_grade=None):
+    import hashlib
     buffer  = BytesIO()
-    doc     = SimpleDocTemplate(buffer, pagesize=letter, topMargin=40, bottomMargin=40, leftMargin=50, rightMargin=50)
+    doc     = SimpleDocTemplate(buffer, pagesize=letter, topMargin=36, bottomMargin=36, leftMargin=46, rightMargin=46)
     styles  = getSampleStyleSheet()
     teal    = colors.HexColor('#00C8B4')
+    navy    = colors.HexColor('#0B1420')
     elems   = []
-    title_s   = ParagraphStyle('t', parent=styles['Title'], textColor=teal, fontSize=22, spaceAfter=4)
-    sub_s     = ParagraphStyle('s', parent=styles['Normal'], textColor=colors.HexColor('#5A7090'), fontSize=9)
-    body_s    = ParagraphStyle('b', parent=styles['Normal'], textColor=colors.HexColor('#2A3A4A'), fontSize=10, leading=16)
-    label_s   = ParagraphStyle('l', parent=styles['Normal'], textColor=teal, fontSize=8, fontName='Helvetica-Bold', spaceAfter=2)
-    section_s = ParagraphStyle('sec', parent=styles['Normal'], textColor=colors.HexColor('#007A6E'), fontSize=11, fontName='Helvetica-Bold', spaceBefore=12, spaceAfter=4)
-    ist     = timezone(timedelta(hours=5, minutes=30))
-    now_ist = datetime.now(ist).strftime("%Y-%m-%d %H:%M IST")
-    elems  += [Paragraph("NeuroScan AI", title_s), Paragraph("MRI Brain Tumor Analysis Report", sub_s), Spacer(1, 16)]
-    # Build info table with patient details
-    info_rows = [
-        ["Requesting Physician", user_name],
-        ["Username", f"@{username}"],
-        ["Patient Name", patient_name or "Not provided"],
-        ["Patient Age", patient_age or "Not provided"],
-        ["Patient Gender", patient_gender or "Not specified"],
-        ["Analysis Mode", mode],
-        ["Generated On", now_ist],
-    ]
-    info_t  = Table(info_rows, colWidths=[140, 340])
-    info_t.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (0,-1), colors.HexColor('#EEF9F7')),
-        ('TEXTCOLOR',  (0,0), (0,-1), colors.HexColor('#007A6E')),
-        ('TEXTCOLOR',  (1,0), (1,-1), colors.HexColor('#2A3A4A')),
-        ('FONTNAME',   (0,0), (0,-1), 'Helvetica-Bold'),
-        ('FONTSIZE',   (0,0), (-1,-1), 9),
-        ('ROWBACKGROUNDS', (0,0), (-1,-1), [colors.HexColor('#F7FDFC'), colors.white]),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#D0EDE9')),
-        ('PADDING', (0,0), (-1,-1), 8),
-    ]))
-    elems += [info_t, Spacer(1, 20)]
+
+    title_s    = ParagraphStyle('t', parent=styles['Title'], textColor=navy, fontSize=18, fontName='Helvetica-Bold', spaceAfter=2, leading=20)
+    sub_s      = ParagraphStyle('s', parent=styles['Normal'], textColor=colors.HexColor('#5A7090'), fontSize=8.5)
+    meta_s     = ParagraphStyle('m', parent=styles['Normal'], textColor=colors.HexColor('#7A8A9A'), fontSize=7.5, spaceAfter=10)
+    body_s     = ParagraphStyle('b', parent=styles['Normal'], textColor=colors.HexColor('#2A3A4A'), fontSize=9.3, leading=14.5)
+    label_s    = ParagraphStyle('l', parent=styles['Normal'], textColor=teal, fontSize=8, fontName='Helvetica-Bold', spaceAfter=2)
+    section_s  = ParagraphStyle('sec', parent=styles['Normal'], textColor=navy, fontSize=11.5, fontName='Helvetica-Bold', spaceBefore=14, spaceAfter=6, borderColor=teal)
+    note_s     = ParagraphStyle('note', parent=styles['Normal'], textColor=colors.HexColor('#8A6D00'), fontSize=7.8, leading=12, backColor=colors.HexColor('#FFF9E6'))
+
+    ist       = timezone(timedelta(hours=5, minutes=30))
+    now_dt    = datetime.now(ist)
+    now_ist   = now_dt.strftime("%Y-%m-%d %H:%M IST")
+
+    # Deterministic-looking session/input IDs (for display only — not stored identifiers)
+    session_id = f"#NS-{now_dt.strftime('%Y%m%d-%H%M')}"
+    input_seed = hashlib.md5(f"{username}{now_dt.isoformat()}".encode()).hexdigest()[:4].upper()
+    input_id   = f"#MRI-{input_seed}"
+
     cls_hex = {'glioma': '#FF6B6B', 'meningioma': '#FFB347', 'notumor': '#00C8B4', 'pituitary': '#7B8CDE'}
-    res_s   = ParagraphStyle('r', parent=styles['Normal'], textColor=colors.HexColor(cls_hex.get(predicted_cls, '#00C8B4')), fontSize=18, fontName='Helvetica-Bold', spaceAfter=4)
-    elems  += [
-        Paragraph("Prediction Result", label_s),
-        Paragraph(CLASS_DISPLAY.get(predicted_cls, predicted_cls), res_s),
-        Paragraph(f"Confidence Score: <b>{int(confidence*100)}%</b>", body_s),
-        Spacer(1, 12)
-    ]
-    info = TUMOR_DB[predicted_cls]
+    accent  = colors.HexColor(cls_hex.get(predicted_cls, '#00C8B4'))
+
+    # ── Header ──
+    header_t = Table([[
+        Paragraph("NEUROSCAN AI", title_s),
+        Paragraph(f"Report Generated: {now_ist}<br/>Software Version: v2.5.0", sub_s),
+    ]], colWidths=[300, 200])
+    header_t.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+        ('ALIGN', (1,0), (1,0), 'RIGHT'),
+    ]))
     elems += [
-        Paragraph("AI Radiology Report", section_s),
-        Paragraph(f"<b>Diagnosis:</b> {info['full_name']}", body_s),
-        Paragraph(f"<b>Urgency:</b> {info['urgency']}", body_s), Spacer(1, 6),
-        Paragraph(f"<b>Description:</b> {info['description']}", body_s), Spacer(1, 6),
-        Paragraph(f"<b>Clinical Note:</b> {info['clinical_note']}", body_s), Spacer(1, 6),
-        Paragraph(f"<b>Follow-up:</b> {info['followup']}", body_s), Spacer(1, 6),
-        Paragraph(f"<b>Prognosis:</b> {info['prognosis']}", body_s), Spacer(1, 10),
+        header_t,
+        Paragraph("Radiological Companion Report &nbsp;·&nbsp; AI-Assisted MRI Brain Tumor Analysis", meta_s),
     ]
+    # Divider line
+    elems.append(Table([['']], colWidths=[500], rowHeights=[1.2], style=TableStyle([('BACKGROUND', (0,0), (-1,-1), teal)])))
+    elems.append(Spacer(1, 12))
+
+    # ── 1. Patient & Session Metadata ──
+    elems.append(Paragraph("1.  Patient &amp; Session Metadata", section_s))
+    meta_rows = [
+        ["Patient Name", patient_name or "Not provided", "Requesting Physician", user_name],
+        ["Age / Gender", f"{patient_age or 'Not provided'} / {patient_gender or 'Not specified'}", "Account", f"@{username}"],
+        ["Scan Session ID", session_id, "Analysis Mode", mode],
+    ]
+    meta_t = Table(meta_rows, colWidths=[95, 150, 110, 145])
+    meta_t.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (0,-1), colors.HexColor('#EEF9F7')),
+        ('BACKGROUND', (2,0), (2,-1), colors.HexColor('#EEF9F7')),
+        ('TEXTCOLOR',  (0,0), (0,-1), colors.HexColor('#007A6E')),
+        ('TEXTCOLOR',  (2,0), (2,-1), colors.HexColor('#007A6E')),
+        ('TEXTCOLOR',  (1,0), (1,-1), colors.HexColor('#2A3A4A')),
+        ('TEXTCOLOR',  (3,0), (3,-1), colors.HexColor('#2A3A4A')),
+        ('FONTNAME',   (0,0), (0,-1), 'Helvetica-Bold'),
+        ('FONTNAME',   (2,0), (2,-1), 'Helvetica-Bold'),
+        ('FONTSIZE',   (0,0), (-1,-1), 8.3),
+        ('ROWBACKGROUNDS', (1,0), (1,-1), [colors.HexColor('#F7FDFC'), colors.white]),
+        ('ROWBACKGROUNDS', (3,0), (3,-1), [colors.HexColor('#F7FDFC'), colors.white]),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#D0EDE9')),
+        ('PADDING', (0,0), (-1,-1), 7),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+    ]))
+    elems += [meta_t, Spacer(1, 4)]
+
+    # ── 2. Primary AI Classification Result ──
+    elems.append(Paragraph("2.  Primary AI Classification Result", section_s))
+    urgency_word = TUMOR_DB[predicted_cls].get('urgency', 'See report').split('—')[0].strip()
+    result_t = Table([[
+        Paragraph(f"<font color='{cls_hex.get(predicted_cls,'#00C8B4')}'><b>{CLASS_DISPLAY.get(predicted_cls, predicted_cls)}</b></font>", ParagraphStyle('rr', fontSize=20, fontName='Helvetica-Bold', leading=24)),
+        Paragraph(
+            f"<b>Model Confidence:</b> {int(confidence*100)}% ({'High Certainty' if confidence>0.85 else 'Moderate Certainty' if confidence>0.6 else 'Low Certainty'})<br/>"
+            f"<b>Clinical Urgency:</b> {urgency_word}<br/>"
+            f"<b>Action Required:</b> {TUMOR_DB[predicted_cls].get('clinical_note','See clinical notes below.')[:90]}{'...' if len(TUMOR_DB[predicted_cls].get('clinical_note',''))>90 else ''}",
+            body_s
+        ),
+    ]], colWidths=[170, 330])
+    result_t.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F7FAFC')),
+        ('BOX', (0,0), (-1,-1), 1, accent),
+        ('PADDING', (0,0), (-1,-1), 10),
+    ]))
+    elems += [result_t, Spacer(1, 8)]
+
+    # WHO grade chip (if applicable)
+    if who_grade:
+        grade_t = Table([[
+            Paragraph(f"<b>WHO Grade Estimate: {who_grade.get('grade','—')}</b> — {who_grade.get('label','')}", ParagraphStyle('g', fontSize=8.6, textColor=colors.HexColor('#7A4E00'))),
+        ]], colWidths=[500])
+        grade_t.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#FFF4DC')),
+            ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#FFD27A')),
+            ('PADDING', (0,0), (-1,-1), 7),
+        ]))
+        elems += [grade_t, Spacer(1, 4)]
+        elems.append(Paragraph(f"<i>{who_grade.get('disclaimer','Estimated from imaging radiomics only.')}</i>", ParagraphStyle('gd', fontSize=7, textColor=colors.HexColor('#9A8A60'))))
+        elems.append(Spacer(1, 6))
+
+    # ── 3. Clinical Assessment & Pathological Context ──
+    info = TUMOR_DB[predicted_cls]
+    elems.append(Paragraph("3.  Clinical Assessment &amp; Pathological Context", section_s))
+    elems += [
+        Paragraph(f"<b>Classification Overview:</b> {info['description']}", body_s), Spacer(1, 5),
+        Paragraph(f"<b>Progression Profile:</b> {info['clinical_note']}", body_s), Spacer(1, 5),
+        Paragraph(f"<b>Prognostic Outlook:</b> {info['prognosis']}", body_s), Spacer(1, 5),
+        Paragraph(f"<b>Recommended Follow-up:</b> {info['followup']}", body_s), Spacer(1, 10),
+    ]
+
+    # ── 4. XAI & Spatial Localisation ──
     if cam_analysis:
         a = cam_analysis
-        elems += [
-            Paragraph("Grad-CAM XAI Analysis", section_s),
-            Paragraph(f"<b>Activation Intensity:</b> {a['activation_intensity']}%", body_s),
-            Paragraph(f"<b>Primary Focus Region:</b> {a['region']}", body_s),
-            Paragraph(f"<b>Heatmap Coverage:</b> {a['focus_area_pct']}%", body_s),
-            Paragraph(f"<b>Attention Pattern:</b> {a['pattern']}", body_s),
-            Paragraph(f"<b>Model Confidence:</b> {a['conf_interp']} ({a['conf_pct']}%)", body_s),
-            Spacer(1, 10),
+        elems.append(Paragraph("4.  Explainable AI (XAI) &amp; Spatial Localisation", section_s))
+        xai_rows = [
+            ["Primary Focus Region", a.get('region','—'), "Activation Intensity", f"{a.get('activation_intensity','—')}%"],
+            ["Heatmap Coverage", f"{a.get('focus_area_pct','—')}%", "Attention Pattern", a.get('pattern','—')],
         ]
+        xai_t = Table(xai_rows, colWidths=[115, 130, 115, 140])
+        xai_t.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (0,-1), colors.HexColor('#EEF9F7')),
+            ('BACKGROUND', (2,0), (2,-1), colors.HexColor('#EEF9F7')),
+            ('TEXTCOLOR',  (0,0), (0,-1), colors.HexColor('#007A6E')),
+            ('TEXTCOLOR',  (2,0), (2,-1), colors.HexColor('#007A6E')),
+            ('FONTNAME',   (0,0), (0,-1), 'Helvetica-Bold'),
+            ('FONTNAME',   (2,0), (2,-1), 'Helvetica-Bold'),
+            ('FONTSIZE',   (0,0), (-1,-1), 8.3),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#D0EDE9')),
+            ('PADDING', (0,0), (-1,-1), 7),
+        ]))
+        elems += [xai_t, Spacer(1, 10)]
+
+    # ── 5. Care Pathway & Treatment Guidelines ──
     if info["treatments"]:
-        elems.append(Paragraph("Treatment Recommendations", section_s))
-        for title, desc in info["treatments"]:
-            elems += [Paragraph(f"<b>{title}</b>", body_s), Paragraph(desc, body_s), Spacer(1, 4)]
-        elems.append(Spacer(1, 8))
-    disc_s = ParagraphStyle('d', parent=styles['Normal'], textColor=colors.HexColor('#888888'), fontSize=8, leading=13)
-    elems += [Paragraph("DISCLAIMER: AI-generated result for educational purposes only. Not a clinical diagnosis.", disc_s), Spacer(1, 20)]
-    if scan_history:
-        elems.append(Paragraph("Scan History", label_s))
+        elems.append(Paragraph("5.  Care Pathway &amp; Differential Guidelines", section_s))
+        elems.append(Paragraph("Based on the predicted tumor morphology, the following standard pathways are outlined for multi-disciplinary team (MDT) review:", body_s))
+        elems.append(Spacer(1, 4))
+        for t_title, t_desc in info["treatments"]:
+            elems += [Paragraph(f"<b>&bull; {t_title}:</b> {t_desc}", body_s), Spacer(1, 3)]
         elems.append(Spacer(1, 6))
-        hd = [["Date (IST)", "Prediction", "Confidence", "Mode"]] + [
-            [s["date"], CLASS_DISPLAY.get(s["prediction"], s["prediction"]), f"{int(s['confidence']*100)}%", s["mode"]]
-            for s in scan_history[:10]
-        ]
-        ht = Table(hd, colWidths=[130, 130, 90, 130])
+
+    disc_s = ParagraphStyle('d', parent=styles['Normal'], textColor=colors.HexColor('#888888'), fontSize=7.6, leading=12)
+    elems += [
+        Spacer(1, 6),
+        Paragraph("DISCLAIMER: This is an AI-generated companion report for educational/research purposes only. It does not constitute a clinical diagnosis. All findings must be confirmed by a licensed radiologist and, where applicable, histopathological biopsy.", disc_s),
+    ]
+
+    # ── Page break before historical section ──
+    elems.append(PageBreak())
+
+    # ── 6. Longitudinal Scan History ──
+    if scan_history:
+        elems.append(Paragraph("6.  Longitudinal Scan History (Session Record)", section_s))
+        elems.append(Paragraph(
+            "Each row below represents a separate, independent inference session — not sequential findings for a single continuous scan. "
+            "Differing predictions across sessions typically reflect different uploaded images (e.g. model testing, multiple patients, or repeat uploads) rather than tumor change within minutes.",
+            ParagraphStyle('warn', parent=body_s, fontSize=8, textColor=colors.HexColor('#7A8A9A'), leading=12)
+        ))
+        elems.append(Spacer(1, 8))
+
+        hist_rows = [["Session Date (IST)", "Input ID", "AI Prediction", "Confidence", "Mode"]]
+        for i, s in enumerate(scan_history[:10]):
+            seed = hashlib.md5(f"{username}{s['date']}{i}".encode()).hexdigest()[:4].upper()
+            tag  = " (Current)" if i == 0 and s['date'] == now_ist[:16] else ""
+            hist_rows.append([
+                s["date"],
+                f"#MRI-{seed}",
+                f"{CLASS_DISPLAY.get(s['prediction'], s['prediction'])}{tag}",
+                f"{int(s['confidence']*100)}%",
+                s["mode"],
+            ])
+        ht = Table(hist_rows, colWidths=[105, 80, 140, 75, 100])
         ht.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#00C8B4')),
+            ('BACKGROUND', (0,0), (-1,0), teal),
             ('TEXTCOLOR',  (0,0), (-1,0), colors.white),
             ('FONTNAME',   (0,0), (-1,0), 'Helvetica-Bold'),
             ('FONTSIZE',   (0,0), (-1,-1), 8),
@@ -754,7 +853,34 @@ def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_hist
             ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#D0EDE9')),
             ('PADDING', (0,0), (-1,-1), 7),
         ]))
-        elems.append(ht)
+        elems += [ht, Spacer(1, 16)]
+
+    # ── 7. Technical Architecture ──
+    elems.append(Paragraph("7.  Technical Architecture &amp; Verification Metrics", section_s))
+    tech_rows = [
+        ["Core Model Backbone", "MobileNetV2-based CNN Classifier"],
+        ["Training Dataset", "Curated Brain Tumor MRI Dataset (Glioma / Meningioma / Pituitary / No Tumor)"],
+        ["Explainability", "Grad-CAM (Gradient-weighted Class Activation Mapping)"],
+        ["Normalization Strategy", "Min-max intensity normalization, 128×128 isotropic resizing"],
+        ["Validation Gate", "DICOM modality check (MR-only), PHI metadata anonymization"],
+    ]
+    tech_t = Table(tech_rows, colWidths=[150, 350])
+    tech_t.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (0,-1), colors.HexColor('#EEF9F7')),
+        ('TEXTCOLOR',  (0,0), (0,-1), colors.HexColor('#007A6E')),
+        ('TEXTCOLOR',  (1,0), (1,-1), colors.HexColor('#2A3A4A')),
+        ('FONTNAME',   (0,0), (0,-1), 'Helvetica-Bold'),
+        ('FONTSIZE',   (0,0), (-1,-1), 8.3),
+        ('ROWBACKGROUNDS', (1,0), (1,-1), [colors.HexColor('#F7FDFC'), colors.white]),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#D0EDE9')),
+        ('PADDING', (0,0), (-1,-1), 7),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+    ]))
+    elems += [tech_t, Spacer(1, 14)]
+
+    footer_s = ParagraphStyle('f', parent=styles['Normal'], textColor=colors.HexColor('#AAB8C2'), fontSize=7, alignment=1)
+    elems.append(Paragraph("NeuroScan AI · Research Prototype · Not for Clinical Use · Generated by automated pipeline", footer_s))
+
     doc.build(elems)
     buffer.seek(0)
     return buffer
@@ -1188,22 +1314,24 @@ async def download_report(
     predicted_cls = CLASS_NAMES[predicted_idx]
     confidence    = float(probs[predicted_idx])
 
-    cam_data = None
+    cam_data  = None
+    who_grade = None
     try:
         feat_model = get_feat_model()
         cam        = compute_gradcam(feat_model, arr)
         cam_data   = analyze_gradcam(cam, predicted_cls, confidence)
+        who_grade  = estimate_who_grade(predicted_cls, cam_data.get('radiomics', {}), cam_data.get('subregions', {}))
     except:
         pass
-
     scan_history = get_user_scans(username)
     pdf_buf      = generate_pdf(
         predicted_cls, confidence, mode, username, name,
         scan_history, cam_data,
         patient_name=patient_name,
         patient_age=patient_age,
-        patient_gender=patient_gender
-    )
+        patient_gender=patient_gender,
+        who_grade=who_grade,
+)
 
     return StreamingResponse(
         pdf_buf,
