@@ -16,7 +16,7 @@ from typing import Optional
 import tensorflow as tf
 from tensorflow.keras.preprocessing import image as keras_image
 
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image as RLImage
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image as RLImage, KeepTogether
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
@@ -1009,16 +1009,10 @@ def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_hist
         ]))
         elems += [prob_t, Spacer(1, 10)]
 
-    # ── 3. Clinical Assessment & Pathological Context ──
-    info = TUMOR_DB[predicted_cls]
-    elems.append(Paragraph("3.  Clinical Assessment &amp; Pathological Context", section_s))
-
     # ── 2c. Dual-Image Visual Confirmation ──
     if original_img is not None and overlay_img is not None:
-        elems.append(Paragraph("2c.  Visual Confirmation — Structural MRI vs. AI Attention Map", ParagraphStyle('img_h', parent=section_s, fontSize=10.5)))
-
+        img_block_elems = [Paragraph("2c.  Visual Confirmation — Structural MRI vs. AI Attention Map", ParagraphStyle('img_h', parent=section_s, fontSize=10.5))]
         img_buf_size = (220, 220)
-
         def pil_to_rlimage(pil_image, size):
             buf = BytesIO()
             img_copy = pil_image.copy().convert('RGB')
@@ -1026,11 +1020,9 @@ def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_hist
             img_copy.save(buf, format='PNG')
             buf.seek(0)
             return RLImage(buf, width=img_copy.width, height=img_copy.height)
-
         try:
             left_img  = pil_to_rlimage(original_img, img_buf_size)
             right_img = pil_to_rlimage(overlay_img, img_buf_size)
-
             img_table = Table([
                 [left_img, right_img],
                 [Paragraph("Original Structural MRI", ParagraphStyle('imgcap', fontSize=7.5, textColor=colors.HexColor('#7A8A9A'), alignment=1)),
@@ -1045,13 +1037,20 @@ def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_hist
                 ('BOTTOMPADDING', (0,0), (-1,0), 4),
                 ('TOPPADDING', (0,1), (-1,1), 2),
             ]))
-            elems += [img_table, Spacer(1, 12)]
+            img_block_elems.append(img_table)
         except Exception as e:
             print(f"PDF image embed error: {e}")
+        elems.append(KeepTogether(img_block_elems))
+        elems.append(Spacer(1, 12))
 
-    elems += [
+    # ── 3. Clinical Assessment & Pathological Context ──
+    info = TUMOR_DB[predicted_cls]
+    elems.append(KeepTogether([
+        Paragraph("3.  Clinical Assessment &amp; Pathological Context", section_s),
         Paragraph(f"<b>Classification Overview:</b> {info['description']}", body_s), Spacer(1, 5),
         Paragraph(f"<b>Progression Profile:</b> {info['clinical_note']}", body_s), Spacer(1, 5),
+    ]))
+    elems += [
         Paragraph(f"<b>Prognostic Outlook:</b> {info['prognosis']}", body_s), Spacer(1, 5),
         Paragraph(f"<b>Recommended Follow-up:</b> {info['followup']}", body_s), Spacer(1, 10),
     ]
@@ -1129,7 +1128,7 @@ def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_hist
 
     # ── 5. Care Pathway & Treatment Guidelines ──
     if info["treatments"]:
-        elems.append(Paragraph("5.  Care Pathway &amp; Differential Guidelines", section_s))
+        elems.append(Paragraph("5a.  Care Pathway &amp; Differential Guidelines", section_s))
         elems.append(Paragraph("Based on the predicted tumor morphology, the following standard pathways are outlined for multi-disciplinary team (MDT) review:", body_s))
         elems.append(Spacer(1, 4))
         for t_title, t_desc in info["treatments"]:
