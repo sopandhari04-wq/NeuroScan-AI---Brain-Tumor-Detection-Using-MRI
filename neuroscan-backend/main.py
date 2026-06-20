@@ -1463,6 +1463,8 @@ async def download_report(
     patient_name:   str = Form("Not provided"),
     patient_age:    str = Form("Not provided"),
     patient_gender: str = Form("Not specified"),
+    idh_status:     str = Form("Unknown"),
+    mgmt_status:    str = Form("Unknown"),
 ):
     contents = await file.read()
    
@@ -1491,6 +1493,11 @@ async def download_report(
         who_grade  = estimate_who_grade(predicted_cls, cam_data.get('radiomics', {}), cam_data.get('subregions', {}))
     except:
         pass
+    cdss_result = None
+    try:
+        cdss_result = evaluate_clinical_rules(predicted_cls, idh_status, mgmt_status)
+    except Exception as e:
+        print(f"CDSS error: {e}")
     scan_history = get_user_scans(username)
     probabilities = {CLASS_NAMES[i]: float(probs[i]) for i in range(len(CLASS_NAMES))}
     pdf_buf       = generate_pdf(
@@ -1501,6 +1508,7 @@ async def download_report(
         patient_gender=patient_gender,
         who_grade=who_grade,
         probabilities=probabilities,
+        cdss_result=cdss_result,
     )
 
     return StreamingResponse(
