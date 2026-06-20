@@ -512,6 +512,56 @@ def get_dynamic_urgency(predicted_cls, who_grade):
         return (parts[0].strip(), parts[1].strip())
     return (base_urgency.strip(), '')
 
+def evaluate_clinical_rules(predicted_cls, idh_status, mgmt_status):
+    """
+    Deterministic Clinical Decision Support System (CDSS) rules engine.
+    Consumes the CNN's raw image classification output and combines it with
+    clinician-provided molecular markers using documented WHO CNS tumor
+    classification guidelines. This is NOT a trained fusion model — the CNN
+    never sees this metadata; it is a separate, traceable expert-system layer.
+    """
+    output = {
+        "refined_title":      CLASS_DISPLAY.get(predicted_cls, predicted_cls),
+        "who_grade_trend":    "Awaiting histopathological verification",
+        "prognostic_profile": "Standard prognostic markers apply based on general pathology.",
+        "urgency_level":      "MODERATE",
+        "custom_pathways":    [],
+        "idh_status":         idh_status,
+        "mgmt_status":        mgmt_status,
+    }
+
+    if predicted_cls == 'glioma':
+        if idh_status == 'Mutant':
+            output["refined_title"]      = "Glioma Phenotype (IDH-Mutant Astrocytoma Trend)"
+            output["who_grade_trend"]    = "II–IV (Low-to-Intermediate Grade Tendency)"
+            output["prognostic_profile"] = "Favorable long-term survival profile compared to wildtype counterparts. Median survival ranges from 5 to 15 years."
+            output["urgency_level"]      = "MODERATE"
+            output["custom_pathways"].append(("Surgical Goal", "Target maximal safe macro-resection as primary surgical goal."))
+            output["custom_pathways"].append(("Targeted Therapy", "Consider targeted IDH1/IDH2 small-molecule inhibitor therapy frameworks."))
+        elif idh_status == 'Wildtype':
+            output["refined_title"]      = "Glioma Phenotype (IDH-Wildtype / Glioblastoma Trend)"
+            output["who_grade_trend"]    = "IV (Highly Aggressive / High-Grade Diffuse Pattern)"
+            output["prognostic_profile"] = "Aggressive clinical course typical. Median historical survival scales to 14–16 months under standard care protocols."
+            output["urgency_level"]      = "CRITICAL / HIGH"
+            output["custom_pathways"].append(("Neurosurgical Consultation", "Immediate neurosurgical consultation indicated for debulking/resection."))
+            output["custom_pathways"].append(("Radiotherapy", "Initiate standard adjuvant radiotherapy protocols (60 Gy in 30 fractions)."))
+
+        if mgmt_status == 'Methylated':
+            output["custom_pathways"].append(("Chemotherapy Response", "Temozolomide (TMZ) protocol: high therapeutic response window predicted due to confirmed MGMT promoter methylation."))
+        elif mgmt_status == 'Unmethylated':
+            output["custom_pathways"].append(("Chemotherapy Response", "Temozolomide (TMZ) protocol: lower alkylating sensitivity noted. Alternative clinical trial frameworks or combination regimens encouraged."))
+
+    elif predicted_cls == 'meningioma':
+        output["refined_title"]      = "Meningioma Phenotype"
+        output["who_grade_trend"]    = "I — Benign Meningioma"
+        output["prognostic_profile"] = "Excellent outlook for WHO Grade I structures; 10-year recurrence-free survival exceeds 80% following complete macroscopic resection."
+        output["urgency_level"]      = "LOW"
+        output["custom_pathways"].append(("Active Surveillance", "Small (<3cm), asymptomatic lesions managed via annual follow-up MRI."))
+        output["custom_pathways"].append(("Surgical Resection", "Simpson Grade I–II macroscopic resection is curative in symptomatic or growing cases."))
+        output["custom_pathways"].append(("Stereotactic Radiosurgery", "Gamma Knife indicated for deep or surgically inaccessible locations under 3cm."))
+
+    return output
+
     
 def pil_from_upload(file_bytes: bytes) -> Image.Image:
     return Image.open(BytesIO(file_bytes)).convert("RGB")
