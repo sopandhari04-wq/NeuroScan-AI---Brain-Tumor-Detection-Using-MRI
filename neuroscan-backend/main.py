@@ -283,8 +283,16 @@ def generate_preprocessing_pipeline(pil_img: Image.Image) -> dict:
         }
     }
 
+def analyze_gradcam(cam, predicted_cls, confidence, original_size=None):
+    # Upscale Grad-CAM to original DICOM resolution for accurate radiomics
+    # (128x128 is only the classifier's input size — using it directly for
+    # physical measurements causes severe spatial quantization error)
+    if original_size and original_size != (128, 128):
+        from PIL import Image as PILImage
+        cam_img = PILImage.fromarray((cam * 255).astype(np.uint8))
+        cam_img = cam_img.resize(original_size, PILImage.BILINEAR)
+        cam = np.array(cam_img, dtype=np.float32) / 255.0
 
-def analyze_gradcam(cam, predicted_cls, confidence):
     h, w = cam.shape
     peak_y, peak_x = np.unravel_index(cam.argmax(), cam.shape)
     vert  = "Superior" if peak_y < h//3 else "Middle" if peak_y < 2*h//3 else "Inferior"
@@ -341,9 +349,9 @@ def analyze_gradcam(cam, predicted_cls, confidence):
         bbox_h     = int(rmax - rmin + 1)
         bbox_w     = int(cmax - cmin + 1)
         # Estimated diameter (average of bbox dimensions normalized to 128px = ~20cm FOV)
-        est_diameter_cm = round(((bbox_h + bbox_w) / 2) / 128 * 20, 1)
-        # Estimated area in cm² (128px ~ 20cm)
-        est_area_cm2    = round(tumor_pixels / (128 * 128) * (20 * 20), 1)
+        est_diameter_cm = round(((bbox_h + bbox_w) / 2) / w * 20, 1)
+        # Estimated area in cm² (assuming ~20cm field of view across full image width)
+        est_area_cm2    = round(tumor_pixels / (h * w) * (20 * 20), 1)
         # Estimated volume in cm³ (assume roughly spherical slice)
         import math
         # More accurate: volume from area assuming circular cross-section
@@ -1246,7 +1254,7 @@ async def predict_single(
         try:
             feat_model  = get_feat_model()
             cam         = compute_gradcam(feat_model, arr)
-            cam_data    = analyze_gradcam(cam, predicted_cls, confidence)
+            cam_data    = analyze_gradcam(cam, predicted_cls, confidence, original_size=pil_img.size)
             who_grade = estimate_who_grade(predicted_cls, cam_data.get('radiomics', {}), cam_data.get('subregions', {}))
             cam_data['who_grade'] = who_grade
             overlay_img = overlay_gradcam(pil_img, cam)
@@ -1360,7 +1368,7 @@ async def predict_fusion(
         try:
             feat_model  = get_feat_model()
             cam         = compute_gradcam(feat_model, fused_input)
-            cam_data    = analyze_gradcam(cam, predicted_cls, confidence)
+            cam_data    = analyze_gradcam(cam, predicted_cls, confidence, original_size=pil_img.size)
             who_grade = estimate_who_grade(predicted_cls, cam_data.get('radiomics', {}), cam_data.get('subregions', {}))
             cam_data['who_grade'] = who_grade
             overlay_img = overlay_gradcam(fused_pil, cam)
