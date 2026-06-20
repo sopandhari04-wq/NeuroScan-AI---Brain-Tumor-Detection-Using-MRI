@@ -84,7 +84,8 @@ export default function Scanner() {
   const user_name = user?.user_metadata?.full_name || user?.email || 'User'
 
   // Patient info
-  const [patient, setPatient] = useState({ name: '', age: '', gender: 'Not specified' })
+  const [patient, setPatient] = useState({ name: '', age: '', gender: 'Not specified', idh: 'Unknown', mgmt: 'Unknown' })
+ 
 
   const [activeTab, setActiveTab]           = useState('single')
   const [loading, setLoading]               = useState(false)
@@ -334,6 +335,8 @@ async function saveAnnotation() {
       fd.append('patient_name',   patient.name   || 'Not provided')
       fd.append('patient_age',    patient.age    || 'Not provided')
       fd.append('patient_gender', patient.gender || 'Not specified')
+      fd.append('idh_status',  patient.idh  || 'Unknown')
+      fd.append('mgmt_status', patient.mgmt || 'Unknown')
       const res  = await fetch(`${API}/api/report`, { method: 'POST', body: fd })
       const blob = await res.blob()
       const url  = URL.createObjectURL(blob)
@@ -411,6 +414,24 @@ async function saveAnnotation() {
                 <option>Male</option>
                 <option>Female</option>
                 <option>Other</option>
+              </select>
+            </div>
+
+            <div>
+              <label style={labelStyle}>IDH Mutation Status <span style={{ opacity: 0.6 }}>(glioma only)</span></label>
+              <select style={{ ...inputStyle, cursor: 'pointer' }} name="idh" value={patient.idh} onChange={handlePatient}>
+                <option value="Unknown">Unknown / Not tested</option>
+                <option value="Mutant">IDH-Mutant</option>
+                <option value="Wildtype">IDH-Wildtype</option>
+              </select>
+            </div>
+
+            <div>
+              <label style={labelStyle}>MGMT Promoter Status <span style={{ opacity: 0.6 }}>(glioma only)</span></label>
+              <select style={{ ...inputStyle, cursor: 'pointer' }} name="mgmt" value={patient.mgmt} onChange={handlePatient}>
+                <option value="Unknown">Unknown / Not tested</option>
+                <option value="Methylated">Methylated</option>
+                <option value="Unmethylated">Unmethylated</option>
               </select>
             </div>
           </div>
