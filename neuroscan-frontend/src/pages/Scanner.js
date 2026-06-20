@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../App'
 import { supabase } from '../lib/supabase'
 import Brain3DViewer from './Brain3DViewer'
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 
 
 const API = 'https://neuroscan-ai-brain-tumor-detection-using.onrender.com'
@@ -864,6 +865,71 @@ async function saveAnnotation() {
         }}>
           ⚠ {result.gradcam.who_grade.disclaimer}
         </div>
+      </div>
+    )}
+
+    {/* Longitudinal Volume Trend */}
+    {result.volume_trend && (
+      <div style={cardStyle()}>
+        <div style={topLine} />
+        {secTitle('Longitudinal Volume Trend', '📈')}
+
+        {result.volume_trend.has_trend ? (
+          <>
+            <div style={{
+              padding: '0.8rem 1rem', borderRadius: '10px', marginBottom: '1rem',
+              background: `${result.volume_trend.trend_color}11`,
+              border: `1px solid ${result.volume_trend.trend_color}44`,
+            }}>
+              <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: '0.85rem', color: result.volume_trend.trend_color, marginBottom: '0.3rem' }}>
+                {result.volume_trend.trend_label}
+              </div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--text-2)', lineHeight: 1.6 }}>
+                {result.volume_trend.alert}
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: '0.75rem', marginBottom: '1rem' }}>
+              <div style={{ textAlign: 'center', padding: '0.6rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', fontWeight: 700, color: result.volume_trend.delta_abs >= 0 ? '#FF5757' : '#0CF2C8' }}>
+                  {result.volume_trend.delta_abs >= 0 ? '+' : ''}{result.volume_trend.delta_abs} cm³
+                </div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.55rem', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Absolute Change</div>
+              </div>
+              <div style={{ textAlign: 'center', padding: '0.6rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', fontWeight: 700, color: result.volume_trend.delta_abs >= 0 ? '#FF5757' : '#0CF2C8' }}>
+                  {result.volume_trend.delta_pct >= 0 ? '+' : ''}{result.volume_trend.delta_pct}%
+                </div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.55rem', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Percent Change</div>
+              </div>
+            </div>
+
+            {/* Mini trend chart */}
+            <div style={{ width: '100%', height: 140, marginBottom: '0.8rem' }}>
+              <ResponsiveContainer>
+                <LineChart data={result.volume_trend.points.map((p, i) => ({ name: p.date.slice(5, 16), volume: p.est_volume_cm3 }))}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                  <XAxis dataKey="name" tick={{ fill: 'var(--text-3)', fontSize: 9 }} />
+                  <YAxis tick={{ fill: 'var(--text-3)', fontSize: 9 }} width={40} />
+                  <Tooltip contentStyle={{ background: 'rgba(10,13,24,0.95)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 11 }} />
+                  <Line type="monotone" dataKey="volume" stroke={result.volume_trend.trend_color} strokeWidth={2} dot={{ r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div style={{
+              fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--text-3)',
+              lineHeight: 1.7, padding: '0.6rem 0.8rem', background: 'rgba(255,255,255,0.02)',
+              borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)',
+            }}>
+              Based on {result.volume_trend.scan_count} same-tumor-type scans. ⚠ {result.volume_trend.disclaimer}
+            </div>
+          </>
+        ) : (
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--text-3)', lineHeight: 1.7 }}>
+            {result.volume_trend.message}
+          </div>
+        )}
       </div>
     )}
   </>
