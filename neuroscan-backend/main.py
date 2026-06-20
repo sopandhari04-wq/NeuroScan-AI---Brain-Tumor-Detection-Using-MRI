@@ -666,7 +666,7 @@ def get_user_scans(username):
         return []
 
 def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_history, cam_analysis=None,
-                  patient_name=None, patient_age=None, patient_gender=None, who_grade=None):
+                  patient_name=None, patient_age=None, patient_gender=None, who_grade=None, probabilities=None):
     import hashlib
     buffer  = BytesIO()
     doc     = SimpleDocTemplate(buffer, pagesize=letter, topMargin=36, bottomMargin=36, leftMargin=46, rightMargin=46)
@@ -772,6 +772,25 @@ def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_hist
         elems.append(Paragraph(f"<i>{who_grade.get('disclaimer','Estimated from imaging radiomics only.')}</i>", ParagraphStyle('gd', fontSize=7, textColor=colors.HexColor('#9A8A60'))))
         elems.append(Spacer(1, 6))
 
+    # Probability breakdown across all classes
+    if probabilities:
+        prob_rows = [["Class", "Probability"]]
+        for cls_key in ['glioma', 'meningioma', 'pituitary', 'notumor']:
+            if cls_key in probabilities:
+                marker = " ◀" if cls_key == predicted_cls else ""
+                prob_rows.append([CLASS_DISPLAY.get(cls_key, cls_key) + marker, f"{round(probabilities[cls_key]*100, 1)}%"])
+        prob_t = Table(prob_rows, colWidths=[300, 200])
+        prob_t.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0B1420')),
+            ('TEXTCOLOR',  (0,0), (-1,0), colors.white),
+            ('FONTNAME',   (0,0), (-1,0), 'Helvetica-Bold'),
+            ('FONTSIZE',   (0,0), (-1,-1), 8.3),
+            ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.HexColor('#F7FDFC'), colors.white]),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#D0EDE9')),
+            ('PADDING', (0,0), (-1,-1), 6),
+        ]))
+        elems += [prob_t, Spacer(1, 10)]
+
     # ── 3. Clinical Assessment & Pathological Context ──
     info = TUMOR_DB[predicted_cls]
     elems.append(Paragraph("3.  Clinical Assessment &amp; Pathological Context", section_s))
@@ -803,6 +822,55 @@ def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_hist
             ('PADDING', (0,0), (-1,-1), 7),
         ]))
         elems += [xai_t, Spacer(1, 10)]
+
+        # Sub-region segmentation (ET / TC / WT)
+        subregions = a.get('subregions')
+        if subregions:
+            elems.append(Paragraph("4a.  Tumor Sub-Region Segmentation", ParagraphStyle('sub4', parent=section_s, fontSize=10, spaceBefore=4)))
+            sub_rows = [["Region", "Description", "Coverage"]]
+            sub_labels = {
+                'ET': 'Enhancing Tumor (active growing region)',
+                'TC': 'Tumor Core (necrotic / dense tissue)',
+                'WT': 'Whole Tumor (incl. surrounding edema)',
+            }
+            for key in ['ET', 'TC', 'WT']:
+                if key in subregions:
+                    sub_rows.append([key, sub_labels.get(key, key), f"{subregions[key].get('pct', 0)}%"])
+            sub_t = Table(sub_rows, colWidths=[60, 290, 150])
+            sub_t.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0B1420')),
+                ('TEXTCOLOR',  (0,0), (-1,0), colors.white),
+                ('FONTNAME',   (0,0), (-1,0), 'Helvetica-Bold'),
+                ('FONTSIZE',   (0,0), (-1,-1), 8.2),
+                ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.HexColor('#F7FDFC'), colors.white]),
+                ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#D0EDE9')),
+                ('PADDING', (0,0), (-1,-1), 6),
+            ]))
+            elems += [sub_t, Spacer(1, 10)]
+
+        # Radiomics features
+        radiomics = a.get('radiomics')
+        if radiomics:
+            elems.append(Paragraph("4b.  Quantitative Radiomics", ParagraphStyle('sub4b', parent=section_s, fontSize=10, spaceBefore=4)))
+            rad_rows = [
+                ["Est. Volume", f"{radiomics.get('est_volume_cm3','—')} cm³", "Est. Diameter", f"{radiomics.get('est_diameter_cm','—')} cm"],
+                ["Sphericity", f"{radiomics.get('sphericity','—')}", "Surface-to-Vol Ratio", f"{radiomics.get('svr','—')}"],
+                ["Intensity Mean", f"{radiomics.get('intensity_mean','—')}%", "Intensity Std Dev", f"{radiomics.get('intensity_std','—')}%"],
+                ["Shape Descriptor", radiomics.get('shape_desc','—'), "Est. Area", f"{radiomics.get('est_area_cm2','—')} cm²"],
+            ]
+            rad_t = Table(rad_rows, colWidths=[110, 135, 130, 125])
+            rad_t.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (0,-1), colors.HexColor('#EEF9F7')),
+                ('BACKGROUND', (2,0), (2,-1), colors.HexColor('#EEF9F7')),
+                ('TEXTCOLOR',  (0,0), (0,-1), colors.HexColor('#007A6E')),
+                ('TEXTCOLOR',  (2,0), (2,-1), colors.HexColor('#007A6E')),
+                ('FONTNAME',   (0,0), (0,-1), 'Helvetica-Bold'),
+                ('FONTNAME',   (2,0), (2,-1), 'Helvetica-Bold'),
+                ('FONTSIZE',   (0,0), (-1,-1), 8.1),
+                ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#D0EDE9')),
+                ('PADDING', (0,0), (-1,-1), 6),
+            ]))
+            elems += [rad_t, Spacer(1, 10)]
 
     # ── 5. Care Pathway & Treatment Guidelines ──
     if info["treatments"]:
@@ -884,6 +952,7 @@ def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_hist
     doc.build(elems)
     buffer.seek(0)
     return buffer
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  SCHEMAS
@@ -1324,14 +1393,16 @@ async def download_report(
     except:
         pass
     scan_history = get_user_scans(username)
-    pdf_buf      = generate_pdf(
+    probabilities = {CLASS_NAMES[i]: float(probs[i]) for i in range(len(CLASS_NAMES))}
+    pdf_buf       = generate_pdf(
         predicted_cls, confidence, mode, username, name,
         scan_history, cam_data,
         patient_name=patient_name,
         patient_age=patient_age,
         patient_gender=patient_gender,
         who_grade=who_grade,
-)
+        probabilities=probabilities,
+    )
 
     return StreamingResponse(
         pdf_buf,
