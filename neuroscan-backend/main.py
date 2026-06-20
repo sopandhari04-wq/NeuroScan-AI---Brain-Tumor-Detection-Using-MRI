@@ -313,9 +313,11 @@ def analyze_gradcam(cam, predicted_cls, confidence, original_size=None):
     # ET (Enhancing Tumor) — highest activation > 0.75
     # TC (Tumor Core)      — high activation 0.5-0.75
     # WT (Whole Tumor)     — all activation > 0.25
+    # Inclusive/nested regions matching BraTS convention:
+    # ET (core) ⊆ TC (core + necrotic) ⊆ WT (core + necrotic + edema)
     et_mask = cam > 0.75
-    tc_mask = (cam > 0.50) & (cam <= 0.75)
-    wt_mask = (cam > 0.25) & (cam <= 0.50)
+    tc_mask = cam > 0.50   # includes ET
+    wt_mask = cam > 0.25   # includes TC and ET
 
     et_pct = float(np.mean(et_mask)) * 100
     tc_pct = float(np.mean(tc_mask)) * 100
@@ -404,7 +406,7 @@ def analyze_gradcam(cam, predicted_cls, confidence, original_size=None):
             "TC": {"pct": round(tc_pct, 1), "label": "Tumor Core",       "color": "#FFAD3B"},
             "WT": {"pct": round(wt_pct, 1), "label": "Whole Tumor Edge", "color": "#FFE566"},
         },
-        "total_tumor_pct": round(total_tumor_pct, 1),
+        "total_tumor_pct": round(wt_pct, 1),  # WT is the outermost/total tumor extent
         # Radiomics
         "radiomics": {
             "tumor_pixels":     tumor_pixels,
