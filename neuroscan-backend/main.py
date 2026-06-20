@@ -1498,6 +1498,13 @@ async def predict_single(
 
     add_scan_record(username, predicted_cls, confidence, "Single MRI", est_volume_cm3=est_volume_for_save)        
 
+    volume_trend = None
+    try:
+        updated_history = get_user_scans(username)
+        volume_trend = calculate_volume_trend(updated_history, predicted_cls)
+    except Exception as e:
+        print(f"Trend calc error: {e}")
+
     return {
         "prediction":    predicted_cls,
         "display_name":  CLASS_DISPLAY[predicted_cls],
@@ -1509,6 +1516,7 @@ async def predict_single(
         "overlay_image": overlay_b64,
         "dicom_info":    dicom_info,
         "preprocessing": preprocessing,
+        "volume_trend":  volume_trend,
 
     }
 
@@ -1617,6 +1625,14 @@ async def predict_fusion(
             traceback.print_exc()
             
     add_scan_record(username, predicted_cls, confidence, "Multi-Modal Fusion", est_volume_cm3=est_volume_for_save)
+
+    volume_trend = None
+    try:
+        updated_history = get_user_scans(username)
+        volume_trend = calculate_volume_trend(updated_history, predicted_cls)
+    except Exception as e:
+        print(f"Trend calc error: {e}")
+        
     return {
         "prediction":    predicted_cls,
         "display_name":  CLASS_DISPLAY[predicted_cls],
@@ -1627,6 +1643,7 @@ async def predict_fusion(
         "gradcam":       cam_data,
         "overlay_image": overlay_b64,
         "preprocessing": preprocessing,
+        "volume_trend":  volume_trend,
     }
 
 # ── PDF Report ─────────────────────────────────────────────────────────────────
@@ -1677,7 +1694,9 @@ async def download_report(
     except Exception as e:
         print(f"CDSS error: {e}")
     scan_history = get_user_scans(username)
+    volume_trend = calculate_volume_trend(scan_history, predicted_cls)
     probabilities = {CLASS_NAMES[i]: float(probs[i]) for i in range(len(CLASS_NAMES))}
+   
     pdf_buf       = generate_pdf(
         predicted_cls, confidence, mode, username, name,
         scan_history, cam_data,
@@ -1689,6 +1708,7 @@ async def download_report(
         cdss_result=cdss_result,
         original_img=pil_img,
         overlay_img=overlay_img,
+        volume_trend=volume_trend,
     )
 
     return StreamingResponse(
