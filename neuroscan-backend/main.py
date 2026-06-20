@@ -888,9 +888,9 @@ def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_hist
     ]
 
     # ── Page break before historical section ──
-    elems.append(PageBreak())
+    elems.append(Spacer(1, 10))
 
-    # ── 6. Longitudinal Scan History ──
+    # ── 6. Longitudinal Scan History (Session Record) ──
     if scan_history:
         elems.append(Paragraph("6.  Longitudinal Scan History (Session Record)", section_s))
         elems.append(Paragraph(
