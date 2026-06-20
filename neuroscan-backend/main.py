@@ -377,6 +377,13 @@ def analyze_gradcam(cam, predicted_cls, confidence):
     elif sphericity >= 0.55: shape_desc = "Moderately irregular"
     else:                    shape_desc = "Highly irregular (infiltrative)"
 
+    # Attention pattern — based on actual estimated tumor diameter, not raw heatmap blur
+    # (Grad-CAM heatmaps are inherently smooth/diffuse even for small focal lesions)
+    if est_diameter_cm < 1.5:   pattern = "Focal / Localized"
+    elif est_diameter_cm < 3.0: pattern = "Moderately Focal"
+    elif est_diameter_cm < 5.0: pattern = "Diffuse"
+    else:                       pattern = "Widespread"
+
     return {
         "region":               f"{vert} {horiz}",
         "activation_intensity": round(activation_intensity, 1),
@@ -475,6 +482,27 @@ def estimate_who_grade(predicted_cls, radiomics, subregions):
         "tumor_type": predicted_cls,
         "disclaimer": "Estimated from imaging radiomics only. Definitive WHO grading requires histopathological biopsy confirmation."
     }
+
+def get_dynamic_urgency(predicted_cls, who_grade):
+    """Override static TUMOR_DB urgency with grade-aware urgency for glioma/meningioma"""
+    base_urgency = TUMOR_DB[predicted_cls].get('urgency', 'See report')
+
+    if who_grade and predicted_cls == 'glioma':
+        if who_grade['grade'] in ('III', 'IV'):
+            return 'HIGH — Urgent neurosurgical evaluation required.'
+        else:  # I, II
+            return 'MODERATE — Neurosurgical consultation recommended; low-grade pattern.'
+
+    if who_grade and predicted_cls == 'meningioma':
+        if who_grade['grade'] == 'III':
+            return 'HIGH — Urgent neurosurgical evaluation required.'
+        elif who_grade['grade'] == 'II':
+            return 'MODERATE — Neurosurgical assessment recommended.'
+        else:
+            return 'LOW — Routine surveillance typically sufficient.'
+
+    return base_urgency
+
     
 def pil_from_upload(file_bytes: bytes) -> Image.Image:
     return Image.open(BytesIO(file_bytes)).convert("RGB")
@@ -740,13 +768,14 @@ def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_hist
 
     # ── 2. Primary AI Classification Result ──
     elems.append(Paragraph("2.  Primary AI Classification Result", section_s))
-    urgency_word = TUMOR_DB[predicted_cls].get('urgency', 'See report').split('—')[0].strip()
+    dynamic_urgency = get_dynamic_urgency(predicted_cls, who_grade)
+    urgency_word    = dynamic_urgency.split('—')[0].strip()
     result_t = Table([[
         Paragraph(f"<font color='{cls_hex.get(predicted_cls,'#00C8B4')}'><b>{CLASS_DISPLAY.get(predicted_cls, predicted_cls)}</b></font>", ParagraphStyle('rr', fontSize=20, fontName='Helvetica-Bold', leading=24)),
         Paragraph(
             f"<b>Model Confidence:</b> {int(confidence*100)}% ({'High Certainty' if confidence>0.85 else 'Moderate Certainty' if confidence>0.6 else 'Low Certainty'})<br/>"
             f"<b>Clinical Urgency:</b> {urgency_word}<br/>"
-            f"<b>Action Required:</b> {TUMOR_DB[predicted_cls].get('clinical_note','See clinical notes below.')[:90]}{'...' if len(TUMOR_DB[predicted_cls].get('clinical_note',''))>90 else ''}",
+            f"<b>Action Required:</b> {dynamic_urgency.split('—',1)[1].strip() if '—' in dynamic_urgency else dynamic_urgency}",
             body_s
         ),
     ]], colWidths=[170, 330])
