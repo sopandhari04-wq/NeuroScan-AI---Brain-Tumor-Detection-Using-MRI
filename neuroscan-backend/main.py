@@ -636,15 +636,18 @@ def preprocess(pil_img: Image.Image) -> np.ndarray:
     arr = keras_image.img_to_array(img_resized)
     return np.expand_dims(arr, axis=0) / 255.0
 
-def add_scan_record(username, predicted_cls, confidence, mode):
+def add_scan_record(username, predicted_cls, confidence, mode, est_volume_cm3=None):
     try:
         sb = get_supabase()
-        sb.table("scans").insert({
+        record = {
             "username":   username,
             "prediction": predicted_cls,
             "confidence": round(float(confidence), 2),
             "mode":       mode
-        }).execute()
+        }
+        if est_volume_cm3 is not None:
+            record["est_volume_cm3"] = round(float(est_volume_cm3), 3)
+        sb.table("scans").insert(record).execute()
     except Exception as e:
         print(f"Could not save scan: {e}")
 
@@ -978,7 +981,7 @@ def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_hist
             elems += [img_table, Spacer(1, 12)]
         except Exception as e:
             print(f"PDF image embed error: {e}")
-            
+
     elems += [
         Paragraph(f"<b>Classification Overview:</b> {info['description']}", body_s), Spacer(1, 5),
         Paragraph(f"<b>Progression Profile:</b> {info['clinical_note']}", body_s), Spacer(1, 5),
@@ -1393,11 +1396,13 @@ async def predict_single(
     predicted_cls = CLASS_NAMES[predicted_idx]
     confidence    = float(probs[predicted_idx])
 
-    add_scan_record(username, predicted_cls, confidence, "Single MRI")
+    _vol_for_history = None  # filled in below if gradcam succeeds
+   
 
     cam_data    = None
     overlay_b64 = None
     preprocessing = None
+    est_volume_for_save = None
 
 
     # Generate preprocessing pipeline for DICOM files
@@ -1413,6 +1418,7 @@ async def predict_single(
             feat_model  = get_feat_model()
             cam         = compute_gradcam(feat_model, arr)
             cam_data    = analyze_gradcam(cam, predicted_cls, confidence, original_size=pil_img.size)
+            est_volume_for_save = cam_data.get('radiomics', {}).get('est_volume_cm3')
             who_grade = estimate_who_grade(predicted_cls, cam_data.get('radiomics', {}), cam_data.get('subregions', {}))
             cam_data['who_grade'] = who_grade
             overlay_img = overlay_gradcam(pil_img, cam)
@@ -1422,6 +1428,8 @@ async def predict_single(
             overlay_b64 = base64.b64encode(buf.getvalue()).decode()
         except Exception as e:
             print(f"Grad-CAM error: {e}")
+
+    add_scan_record(username, predicted_cls, confidence, "Single MRI", est_volume_cm3=est_volume_for_save)        
 
     return {
         "prediction":    predicted_cls,
@@ -1507,12 +1515,13 @@ async def predict_fusion(
     predicted_idx = int(np.argmax(probs))
     predicted_cls = CLASS_NAMES[predicted_idx]
     confidence    = float(probs[predicted_idx])
-
-    add_scan_record(username, predicted_cls, confidence, "Multi-Modal Fusion")
+    
+    _vol_for_history = None  # filled in below if gradcam succeeds
 
     cam_data    = None
     overlay_b64 = None
     preprocessing = None
+    est_volume_for_save = None
 
     # Generate preprocessing pipeline for DICOM files
     if dicom_info:
@@ -1527,6 +1536,7 @@ async def predict_fusion(
             feat_model  = get_feat_model()
             cam         = compute_gradcam(feat_model, fused_input)
             cam_data    = analyze_gradcam(cam, predicted_cls, confidence, original_size=pil_img.size)
+            est_volume_for_save = cam_data.get('radiomics', {}).get('est_volume_cm3')
             who_grade = estimate_who_grade(predicted_cls, cam_data.get('radiomics', {}), cam_data.get('subregions', {}))
             cam_data['who_grade'] = who_grade
             overlay_img = overlay_gradcam(fused_pil, cam)
@@ -1538,7 +1548,8 @@ async def predict_fusion(
             import traceback
             print(f"Grad-CAM error: {e}")
             traceback.print_exc()
-
+            
+    add_scan_record(username, predicted_cls, confidence, "Multi-Modal Fusion", est_volume_cm3=est_volume_for_save)
     return {
         "prediction":    predicted_cls,
         "display_name":  CLASS_DISPLAY[predicted_cls],
