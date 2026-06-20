@@ -810,9 +810,59 @@ async function saveAnnotation() {
         </div>
       </div>
     )}
+
+    {/* WHO Grade Estimation */}
+    {result.gradcam?.who_grade && (
+      <div style={cardStyle()}>
+        <div style={topLine} />
+        {secTitle('WHO Grade Estimation', '🎯')}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+          <div style={{
+            fontFamily: 'var(--font-display)', fontSize: '2.2rem', fontWeight: 800,
+            color: result.gradcam.who_grade.color, lineHeight: 1,
+          }}>
+            {result.gradcam.who_grade.grade}
+          </div>
+          <div>
+            <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-1)' }}>
+              {result.gradcam.who_grade.label}
+            </div>
+            <div style={{
+              display: 'inline-block', marginTop: '0.3rem',
+              background: `${result.gradcam.who_grade.color}22`, color: result.gradcam.who_grade.color,
+              fontSize: '0.6rem', letterSpacing: '0.12em', padding: '0.2rem 0.6rem', borderRadius: '99px',
+              border: `1px solid ${result.gradcam.who_grade.color}55`, textTransform: 'uppercase', fontFamily: 'var(--font-mono)',
+            }}>
+              {result.gradcam.who_grade.urgency} urgency
+            </div>
+          </div>
+        </div>
+
+        {/* Score bar */}
+        <div style={{ marginBottom: '0.8rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Radiomic Risk Score</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: result.gradcam.who_grade.color }}>{result.gradcam.who_grade.score}/{result.gradcam.who_grade.max_score}</span>
+          </div>
+          <div style={{ height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 99, overflow: 'hidden' }}>
+            <div style={{
+              height: '100%', width: `${(result.gradcam.who_grade.score / result.gradcam.who_grade.max_score) * 100}%`,
+              background: result.gradcam.who_grade.color, borderRadius: 99, transition: 'width 0.5s ease',
+            }} />
+          </div>
+        </div>
+
+        <div style={{
+          fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--text-3)',
+          lineHeight: 1.7, padding: '0.6rem 0.8rem', background: 'rgba(255,255,255,0.02)',
+          borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)',
+        }}>
+          ⚠ {result.gradcam.who_grade.disclaimer}
+        </div>
+      </div>
+    )}
   </>
 )}
-
             {/* AI Radiology Report */}
             {result.tumor_info && (
               <div style={cardStyle()}>
