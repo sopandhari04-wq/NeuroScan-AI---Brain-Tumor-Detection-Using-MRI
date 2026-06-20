@@ -746,15 +746,82 @@ def get_user_scans(username):
             except:
                 date_str = s["date"][:16]
             scans.append({
-                "date":       date_str,
-                "prediction": s["prediction"],
-                "confidence": s["confidence"],
-                "mode":       s["mode"]
+                "date":           date_str,
+                "raw_date":       s["date"],
+                "prediction":     s["prediction"],
+                "confidence":     s["confidence"],
+                "mode":           s["mode"],
+                "est_volume_cm3": s.get("est_volume_cm3"),
             })
         return scans
     except:
         return []
 
+
+def calculate_volume_trend(scan_history, predicted_cls):
+    """
+    Builds a longitudinal volume trend from a patient's past tumor-positive scans
+    (same tumor class only, since comparing glioma volume to meningioma volume
+    is not clinically meaningful) and computes the delta between the two most
+    recent measurements.
+    """
+    if predicted_cls == 'notumor' or not scan_history:
+        return None
+
+    # Filter to same-class scans with a valid volume measurement, oldest first
+    relevant = [
+        s for s in scan_history
+        if s.get('prediction') == predicted_cls and s.get('est_volume_cm3') is not None
+    ]
+    relevant.sort(key=lambda s: s.get('raw_date', ''))
+
+    if len(relevant) < 2:
+        return {
+            "has_trend": False,
+            "points": relevant,
+            "message": "Insufficient historical data for trend analysis. At least two prior scans of the same tumor type with measurable volume are required."
+        }
+
+    latest   = relevant[-1]
+    previous = relevant[-2]
+    vol_new  = latest['est_volume_cm3']
+    vol_old  = previous['est_volume_cm3']
+
+    delta_abs = round(vol_new - vol_old, 3)
+    delta_pct = round((delta_abs / vol_old) * 100, 1) if vol_old > 0 else 0.0
+
+    if delta_pct > 15:
+        trend_label = "Significant Increase"
+        trend_color = "#FF3333"
+        alert = f"Warning: Tumor volume has increased by {delta_pct}% since the previous scan. Prioritize neurosurgical review."
+    elif delta_pct > 5:
+        trend_label = "Mild Increase"
+        trend_color = "#FFAD3B"
+        alert = f"Tumor volume has increased by {delta_pct}% since the previous scan. Continued monitoring recommended."
+    elif delta_pct < -15:
+        trend_label = "Significant Decrease"
+        trend_color = "#0CF2C8"
+        alert = f"Tumor volume has decreased by {abs(delta_pct)}% since the previous scan — possible treatment response."
+    elif delta_pct < -5:
+        trend_label = "Mild Decrease"
+        trend_color = "#0CF2C8"
+        alert = f"Tumor volume has decreased by {abs(delta_pct)}% since the previous scan."
+    else:
+        trend_label = "Stable"
+        trend_color = "#7B82F5"
+        alert = "Tumor volume is stable compared to the previous scan."
+
+    return {
+        "has_trend":   True,
+        "points":      relevant,
+        "delta_abs":   delta_abs,
+        "delta_pct":   delta_pct,
+        "trend_label": trend_label,
+        "trend_color": trend_color,
+        "alert":       alert,
+        "scan_count":  len(relevant),
+        "disclaimer":  "Trend is based on single-slice 2D volume approximations from independent scan sessions, not registered 3D volumetric follow-up. Clinical correlation required."
+    }
 def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_history, cam_analysis=None,
                   patient_name=None, patient_age=None, patient_gender=None, who_grade=None, probabilities=None,
                   cdss_result=None, original_img=None, overlay_img=None):
