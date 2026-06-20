@@ -874,20 +874,42 @@ def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_hist
         ]))
         elems += [Spacer(1, 4), cdss_header, Spacer(1, 5)]
 
+        # Flag if molecular markers shift the grade/urgency away from pure imaging estimate
+        if who_grade and cdss_result.get('who_grade_trend') and who_grade.get('grade') not in cdss_result['who_grade_trend']:
+            elems.append(Paragraph(
+                "<b>⚠ Note:</b> The image-based WHO Grade estimate in Section 2a differs from the molecular-marker-adjusted "
+                "trend below. This is expected — radiomics alone cannot detect genomic features like IDH/MGMT status, which "
+                "is precisely why molecular testing materially changes clinical risk stratification here.",
+                ParagraphStyle('bridge', fontSize=7.6, textColor=colors.HexColor('#7A4E00'), leading=11, backColor=colors.HexColor('#FFF4DC'), borderPadding=5)
+            ))
+            elems.append(Spacer(1, 6))
+
         elems.append(Paragraph(
             f"<b>Molecular Markers (clinician-provided):</b> IDH Status: {idh} &nbsp;·&nbsp; MGMT Status: {mgmt}",
             body_s
         ))
-        elems.append(Spacer(1, 4))
-        elems.append(Paragraph(f"<b>Refined Clinical Title:</b> {cdss_result.get('refined_title','—')}", body_s))
-        elems.append(Paragraph(f"<b>WHO Grade Trend:</b> {cdss_result.get('who_grade_trend','—')}", body_s))
-        elems.append(Paragraph(f"<b>Prognostic Profile:</b> {cdss_result.get('prognostic_profile','—')}", body_s))
-        elems.append(Spacer(1, 5))
+        cdss_rows = [
+            ["Refined Clinical Title", cdss_result.get('refined_title','—')],
+            ["WHO Grade Trend",        cdss_result.get('who_grade_trend','—')],
+            ["Prognostic Profile",     cdss_result.get('prognostic_profile','—')],
+        ]
+        cdss_t = Table(cdss_rows, colWidths=[130, 370])
+        cdss_t.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (0,-1), colors.HexColor('#F0EDFC')),
+            ('TEXTCOLOR',  (0,0), (0,-1), colors.HexColor('#5A3DBF')),
+            ('FONTNAME',   (0,0), (0,-1), 'Helvetica-Bold'),
+            ('FONTSIZE',   (0,0), (-1,-1), 8.3),
+            ('TEXTCOLOR',  (1,0), (1,-1), colors.HexColor('#2A3A4A')),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E0D9F5')),
+            ('PADDING', (0,0), (-1,-1), 7),
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
+        ]))
+        elems += [cdss_t, Spacer(1, 8)]
 
-        elems.append(Paragraph("<b>Targeted Care Pathway Alerts:</b>", body_s))
+        elems.append(Paragraph("<b>Targeted Care Pathway Alerts</b>", ParagraphStyle('pathway_h', parent=body_s, fontSize=9, spaceAfter=4)))
         for title, desc in cdss_result['custom_pathways']:
             elems.append(Paragraph(f"&bull; <b>{title}:</b> {desc}", body_s))
-            elems.append(Spacer(1, 2))
+            elems.append(Spacer(1, 3))
 
         elems.append(Spacer(1, 4))
         elems.append(Paragraph(
