@@ -408,6 +408,71 @@ def analyze_gradcam(cam, predicted_cls, confidence):
             "shape_desc":       shape_desc,
         },
     }
+
+def estimate_who_grade(predicted_cls, radiomics, subregions):
+    """Estimate WHO grade for glioma based on radiomics features"""
+    if predicted_cls != 'glioma':
+        return None
+
+    et_pct = subregions.get('ET', {}).get('pct', 0) if subregions else 0
+    tc_pct = subregions.get('TC', {}).get('pct', 0) if subregions else 0
+    wt_pct = subregions.get('WT', {}).get('pct', 0) if subregions else 0
+
+    sphericity   = radiomics.get('sphericity', 0.5)
+    intensity_std = radiomics.get('intensity_std', 0)
+    volume       = radiomics.get('est_volume_cm3', 0)
+
+    # Scoring heuristic based on established radiomic correlates of grade
+    score = 0
+
+    # High ET ratio → more active enhancing tumor → higher grade
+    if et_pct > 25: score += 2
+    elif et_pct > 15: score += 1
+
+    # Low sphericity (irregular shape) → higher grade
+    if sphericity < 0.6: score += 2
+    elif sphericity < 0.75: score += 1
+
+    # High intensity heterogeneity (necrosis) → higher grade
+    if intensity_std > 45: score += 2
+    elif intensity_std > 30: score += 1
+
+    # Larger volume → higher grade (not always, but correlated)
+    if volume > 3: score += 1
+
+    # TC (necrotic core) ratio → higher grade
+    if tc_pct > 20: score += 1
+
+    if score >= 5:
+        grade   = 'IV'
+        label   = 'High-Grade (WHO IV) — Glioblastoma pattern'
+        urgency = 'critical'
+        color   = '#FF3333'
+    elif score >= 3:
+        grade   = 'III'
+        label   = 'High-Grade (WHO III) — Anaplastic pattern'
+        urgency = 'high'
+        color   = '#FF5757'
+    elif score >= 1:
+        grade   = 'II'
+        label   = 'Low-Grade (WHO II) — Diffuse pattern'
+        urgency = 'moderate'
+        color   = '#FFAD3B'
+    else:
+        grade   = 'I'
+        label   = 'Low-Grade (WHO I) — Pilocytic pattern'
+        urgency = 'low'
+        color   = '#0CF2C8'
+
+    return {
+        "grade": grade,
+        "label": label,
+        "urgency": urgency,
+        "color": color,
+        "score": score,
+        "max_score": 8,
+        "disclaimer": "Estimated from imaging radiomics only. Definitive WHO grading requires histopathological biopsy confirmation."
+    }
     
 def pil_from_upload(file_bytes: bytes) -> Image.Image:
     return Image.open(BytesIO(file_bytes)).convert("RGB")
@@ -954,6 +1019,8 @@ async def predict_single(
             feat_model  = get_feat_model()
             cam         = compute_gradcam(feat_model, arr)
             cam_data    = analyze_gradcam(cam, predicted_cls, confidence)
+            who_grade = estimate_who_grade(predicted_cls, cam_data.get('radiomics', {}), cam_data.get('subregions', {}))
+            cam_data['who_grade'] = who_grade
             overlay_img = overlay_gradcam(pil_img, cam)
             buf = BytesIO()
             overlay_img.save(buf, format="PNG")
@@ -1066,6 +1133,8 @@ async def predict_fusion(
             feat_model  = get_feat_model()
             cam         = compute_gradcam(feat_model, fused_input)
             cam_data    = analyze_gradcam(cam, predicted_cls, confidence)
+            who_grade = estimate_who_grade(predicted_cls, cam_data.get('radiomics', {}), cam_data.get('subregions', {}))
+            cam_data['who_grade'] = who_grade
             overlay_img = overlay_gradcam(fused_pil, cam)
             buf = BytesIO()
             overlay_img.save(buf, format="PNG")
