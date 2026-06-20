@@ -753,7 +753,8 @@ def get_user_scans(username):
         return []
 
 def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_history, cam_analysis=None,
-                  patient_name=None, patient_age=None, patient_gender=None, who_grade=None, probabilities=None):
+                  patient_name=None, patient_age=None, patient_gender=None, who_grade=None, probabilities=None,
+                  cdss_result=None):
     import hashlib
     buffer  = BytesIO()
     doc     = SimpleDocTemplate(buffer, pagesize=letter, topMargin=36, bottomMargin=36, leftMargin=46, rightMargin=46)
@@ -825,8 +826,8 @@ def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_hist
     ]))
     elems += [meta_t, Spacer(1, 4)]
 
-    # ── 2. Primary AI Classification Result ──
-    elems.append(Paragraph("2.  Primary AI Classification Result", section_s))
+    # ── 2a. Primary AI Classification Result (raw model output) ──
+    elems.append(Paragraph("2a.  Primary AI Classification Result (Image Model Output)", section_s))
     urgency_word, urgency_detail = get_dynamic_urgency(predicted_cls, who_grade)
     result_t = Table([[
         Paragraph(f"<font color='{cls_hex.get(predicted_cls,'#00C8B4')}'><b>{CLASS_DISPLAY.get(predicted_cls, predicted_cls)}</b></font>", ParagraphStyle('rr', fontSize=20, fontName='Helvetica-Bold', leading=24)),
@@ -858,6 +859,44 @@ def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_hist
         elems += [grade_t, Spacer(1, 4)]
         elems.append(Paragraph(f"<i>{who_grade.get('disclaimer','Estimated from imaging radiomics only.')}</i>", ParagraphStyle('gd', fontSize=7, textColor=colors.HexColor('#9A8A60'))))
         elems.append(Spacer(1, 6))
+
+    # ── 2b. Clinical Decision Support Synthesis ──
+    if cdss_result and cdss_result.get('custom_pathways'):
+        idh = cdss_result.get('idh_status', 'Unknown')
+        mgmt = cdss_result.get('mgmt_status', 'Unknown')
+
+        cdss_header = Table([[
+            Paragraph("2b. Clinical Decision Support Synthesis", ParagraphStyle('cdss_h', fontSize=10.5, fontName='Helvetica-Bold', textColor=colors.HexColor('#5A3DBF'))),
+        ]], colWidths=[500])
+        cdss_header.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F0EDFC')),
+            ('PADDING', (0,0), (-1,-1), 7),
+        ]))
+        elems += [Spacer(1, 4), cdss_header, Spacer(1, 5)]
+
+        elems.append(Paragraph(
+            f"<b>Molecular Markers (clinician-provided):</b> IDH Status: {idh} &nbsp;·&nbsp; MGMT Status: {mgmt}",
+            body_s
+        ))
+        elems.append(Spacer(1, 4))
+        elems.append(Paragraph(f"<b>Refined Clinical Title:</b> {cdss_result.get('refined_title','—')}", body_s))
+        elems.append(Paragraph(f"<b>WHO Grade Trend:</b> {cdss_result.get('who_grade_trend','—')}", body_s))
+        elems.append(Paragraph(f"<b>Prognostic Profile:</b> {cdss_result.get('prognostic_profile','—')}", body_s))
+        elems.append(Spacer(1, 5))
+
+        elems.append(Paragraph("<b>Targeted Care Pathway Alerts:</b>", body_s))
+        for title, desc in cdss_result['custom_pathways']:
+            elems.append(Paragraph(f"&bull; <b>{title}:</b> {desc}", body_s))
+            elems.append(Spacer(1, 2))
+
+        elems.append(Spacer(1, 4))
+        elems.append(Paragraph(
+            "<i>This synthesis combines AI image classification (Section 2a) with clinician-provided molecular markers using "
+            "documented WHO CNS tumor classification guidelines — it is a deterministic rules engine, not a trained multi-modal "
+            "model. Molecular status must be lab-confirmed via biopsy/genomic testing.</i>",
+            ParagraphStyle('cdss_disc', fontSize=7, textColor=colors.HexColor('#8A7DBF'), leading=11)
+        ))
+        elems.append(Spacer(1, 8))
 
     # Probability breakdown across all classes
     if probabilities:
