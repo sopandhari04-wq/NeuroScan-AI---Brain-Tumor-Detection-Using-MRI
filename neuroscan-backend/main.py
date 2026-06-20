@@ -16,7 +16,7 @@ from typing import Optional
 import tensorflow as tf
 from tensorflow.keras.preprocessing import image as keras_image
 
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image as RLImage
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
@@ -754,7 +754,7 @@ def get_user_scans(username):
 
 def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_history, cam_analysis=None,
                   patient_name=None, patient_age=None, patient_gender=None, who_grade=None, probabilities=None,
-                  cdss_result=None):
+                  cdss_result=None, original_img=None, overlay_img=None):
     import hashlib
     buffer  = BytesIO()
     doc     = SimpleDocTemplate(buffer, pagesize=letter, topMargin=36, bottomMargin=36, leftMargin=46, rightMargin=46)
@@ -942,6 +942,43 @@ def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_hist
     # ── 3. Clinical Assessment & Pathological Context ──
     info = TUMOR_DB[predicted_cls]
     elems.append(Paragraph("3.  Clinical Assessment &amp; Pathological Context", section_s))
+
+    # ── 2c. Dual-Image Visual Confirmation ──
+    if original_img is not None and overlay_img is not None:
+        elems.append(Paragraph("2c.  Visual Confirmation — Structural MRI vs. AI Attention Map", ParagraphStyle('img_h', parent=section_s, fontSize=10.5)))
+
+        img_buf_size = (220, 220)
+
+        def pil_to_rlimage(pil_image, size):
+            buf = BytesIO()
+            img_copy = pil_image.copy().convert('RGB')
+            img_copy.thumbnail(size, Image.LANCZOS)
+            img_copy.save(buf, format='PNG')
+            buf.seek(0)
+            return RLImage(buf, width=img_copy.width, height=img_copy.height)
+
+        try:
+            left_img  = pil_to_rlimage(original_img, img_buf_size)
+            right_img = pil_to_rlimage(overlay_img, img_buf_size)
+
+            img_table = Table([
+                [left_img, right_img],
+                [Paragraph("Original Structural MRI", ParagraphStyle('imgcap', fontSize=7.5, textColor=colors.HexColor('#7A8A9A'), alignment=1)),
+                 Paragraph(f"Grad-CAM Overlay — {cam_analysis.get('pattern','—') if cam_analysis else '—'} Attention Pattern", ParagraphStyle('imgcap2', fontSize=7.5, textColor=colors.HexColor('#7A8A9A'), alignment=1))],
+            ], colWidths=[250, 250])
+            img_table.setStyle(TableStyle([
+                ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                ('VALIGN', (0,0), (-1,0), 'MIDDLE'),
+                ('BOX', (0,0), (0,0), 0.5, colors.HexColor('#D0EDE9')),
+                ('BOX', (1,0), (1,0), 0.5, colors.HexColor('#FFD9D9')),
+                ('TOPPADDING', (0,0), (-1,0), 6),
+                ('BOTTOMPADDING', (0,0), (-1,0), 4),
+                ('TOPPADDING', (0,1), (-1,1), 2),
+            ]))
+            elems += [img_table, Spacer(1, 12)]
+        except Exception as e:
+            print(f"PDF image embed error: {e}")
+            
     elems += [
         Paragraph(f"<b>Classification Overview:</b> {info['description']}", body_s), Spacer(1, 5),
         Paragraph(f"<b>Progression Profile:</b> {info['clinical_note']}", body_s), Spacer(1, 5),
