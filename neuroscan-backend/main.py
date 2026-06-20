@@ -410,59 +410,60 @@ def analyze_gradcam(cam, predicted_cls, confidence):
     }
 
 def estimate_who_grade(predicted_cls, radiomics, subregions):
-    """Estimate WHO grade for glioma based on radiomics features"""
-    if predicted_cls != 'glioma':
+    """Estimate WHO grade for glioma/meningioma based on radiomics features"""
+    if predicted_cls not in ('glioma', 'meningioma'):
         return None
 
     et_pct = subregions.get('ET', {}).get('pct', 0) if subregions else 0
     tc_pct = subregions.get('TC', {}).get('pct', 0) if subregions else 0
     wt_pct = subregions.get('WT', {}).get('pct', 0) if subregions else 0
 
-    sphericity   = radiomics.get('sphericity', 0.5)
+    sphericity    = radiomics.get('sphericity', 0.5)
     intensity_std = radiomics.get('intensity_std', 0)
-    volume       = radiomics.get('est_volume_cm3', 0)
+    volume        = radiomics.get('est_volume_cm3', 0)
 
-    # Scoring heuristic based on established radiomic correlates of grade
-    score = 0
+    if predicted_cls == 'glioma':
+        score = 0
+        if et_pct > 25: score += 2
+        elif et_pct > 15: score += 1
+        if sphericity < 0.6: score += 2
+        elif sphericity < 0.75: score += 1
+        if intensity_std > 45: score += 2
+        elif intensity_std > 30: score += 1
+        if volume > 3: score += 1
+        if tc_pct > 20: score += 1
 
-    # High ET ratio → more active enhancing tumor → higher grade
-    if et_pct > 25: score += 2
-    elif et_pct > 15: score += 1
+        max_score = 8
+        if score >= 5:
+            grade, label, urgency, color = 'IV', 'High-Grade (WHO IV) — Glioblastoma pattern', 'critical', '#FF3333'
+        elif score >= 3:
+            grade, label, urgency, color = 'III', 'High-Grade (WHO III) — Anaplastic pattern', 'high', '#FF5757'
+        elif score >= 1:
+            grade, label, urgency, color = 'II', 'Low-Grade (WHO II) — Diffuse pattern', 'moderate', '#FFAD3B'
+        else:
+            grade, label, urgency, color = 'I', 'Low-Grade (WHO I) — Pilocytic pattern', 'low', '#0CF2C8'
 
-    # Low sphericity (irregular shape) → higher grade
-    if sphericity < 0.6: score += 2
-    elif sphericity < 0.75: score += 1
+    else:  # meningioma — WHO I-III, based on irregularity/edema rather than necrosis
+        score = 0
+        # Irregular shape (atypical/anaplastic meningiomas are less spherical)
+        if sphericity < 0.55: score += 2
+        elif sphericity < 0.7: score += 1
+        # High peritumoral edema (WT relative to core) suggests higher grade
+        if wt_pct > 30: score += 2
+        elif wt_pct > 18: score += 1
+        # Heterogeneous intensity (atypical features)
+        if intensity_std > 40: score += 2
+        elif intensity_std > 28: score += 1
+        # Larger size correlates with atypical/anaplastic subtype
+        if volume > 4: score += 1
 
-    # High intensity heterogeneity (necrosis) → higher grade
-    if intensity_std > 45: score += 2
-    elif intensity_std > 30: score += 1
-
-    # Larger volume → higher grade (not always, but correlated)
-    if volume > 3: score += 1
-
-    # TC (necrotic core) ratio → higher grade
-    if tc_pct > 20: score += 1
-
-    if score >= 5:
-        grade   = 'IV'
-        label   = 'High-Grade (WHO IV) — Glioblastoma pattern'
-        urgency = 'critical'
-        color   = '#FF3333'
-    elif score >= 3:
-        grade   = 'III'
-        label   = 'High-Grade (WHO III) — Anaplastic pattern'
-        urgency = 'high'
-        color   = '#FF5757'
-    elif score >= 1:
-        grade   = 'II'
-        label   = 'Low-Grade (WHO II) — Diffuse pattern'
-        urgency = 'moderate'
-        color   = '#FFAD3B'
-    else:
-        grade   = 'I'
-        label   = 'Low-Grade (WHO I) — Pilocytic pattern'
-        urgency = 'low'
-        color   = '#0CF2C8'
+        max_score = 7
+        if score >= 4:
+            grade, label, urgency, color = 'III', 'Anaplastic Meningioma (WHO III)', 'high', '#FF5757'
+        elif score >= 2:
+            grade, label, urgency, color = 'II', 'Atypical Meningioma (WHO II)', 'moderate', '#FFAD3B'
+        else:
+            grade, label, urgency, color = 'I', 'Benign Meningioma (WHO I)', 'low', '#0CF2C8'
 
     return {
         "grade": grade,
@@ -470,7 +471,8 @@ def estimate_who_grade(predicted_cls, radiomics, subregions):
         "urgency": urgency,
         "color": color,
         "score": score,
-        "max_score": 8,
+        "max_score": max_score,
+        "tumor_type": predicted_cls,
         "disclaimer": "Estimated from imaging radiomics only. Definitive WHO grading requires histopathological biopsy confirmation."
     }
     
