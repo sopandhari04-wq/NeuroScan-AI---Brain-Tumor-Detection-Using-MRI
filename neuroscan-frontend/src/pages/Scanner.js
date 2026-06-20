@@ -325,6 +325,7 @@ async function saveAnnotation() {
     setPdfLoading(true)
     try {
       const fd = new FormData()
+      console.log('Patient data being sent:', patient)
       const fileToSend = activeTab === 'single' ? singleFile : fusionFiles.t1
       fd.append('file',           fileToSend)
       fd.append('username',       username)
