@@ -1545,15 +1545,17 @@ async def download_report(
     predicted_cls = CLASS_NAMES[predicted_idx]
     confidence    = float(probs[predicted_idx])
 
-    cam_data  = None
-    who_grade = None
+    cam_data    = None
+    who_grade   = None
+    overlay_img = None
     try:
-        feat_model = get_feat_model()
-        cam        = compute_gradcam(feat_model, arr)
-        cam_data   = analyze_gradcam(cam, predicted_cls, confidence)
-        who_grade  = estimate_who_grade(predicted_cls, cam_data.get('radiomics', {}), cam_data.get('subregions', {}))
-    except:
-        pass
+        feat_model  = get_feat_model()
+        cam         = compute_gradcam(feat_model, arr)
+        cam_data    = analyze_gradcam(cam, predicted_cls, confidence)
+        who_grade   = estimate_who_grade(predicted_cls, cam_data.get('radiomics', {}), cam_data.get('subregions', {}))
+        overlay_img = overlay_gradcam(pil_img, cam)
+    except Exception as e:
+        print(f"Grad-CAM error in PDF route: {e}")
     cdss_result = None
     try:
         cdss_result = evaluate_clinical_rules(predicted_cls, idh_status, mgmt_status)
@@ -1570,6 +1572,8 @@ async def download_report(
         who_grade=who_grade,
         probabilities=probabilities,
         cdss_result=cdss_result,
+        original_img=pil_img,
+        overlay_img=overlay_img,
     )
 
     return StreamingResponse(
