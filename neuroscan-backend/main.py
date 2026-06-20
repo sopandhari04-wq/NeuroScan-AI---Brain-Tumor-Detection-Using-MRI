@@ -489,19 +489,22 @@ def get_dynamic_urgency(predicted_cls, who_grade):
 
     if who_grade and predicted_cls == 'glioma':
         if who_grade['grade'] in ('III', 'IV'):
-            return 'HIGH — Urgent neurosurgical evaluation required.'
-        else:  # I, II
-            return 'MODERATE — Neurosurgical consultation recommended; low-grade pattern.'
+            return ('HIGH', 'Urgent neurosurgical evaluation required.')
+        else:
+            return ('MODERATE', 'Neurosurgical consultation recommended; low-grade pattern.')
 
     if who_grade and predicted_cls == 'meningioma':
         if who_grade['grade'] == 'III':
-            return 'HIGH — Urgent neurosurgical evaluation required.'
+            return ('HIGH', 'Urgent neurosurgical evaluation required.')
         elif who_grade['grade'] == 'II':
-            return 'MODERATE — Neurosurgical assessment recommended.'
+            return ('MODERATE', 'Neurosurgical assessment recommended.')
         else:
-            return 'LOW — Routine surveillance typically sufficient.'
+            return ('LOW', 'Routine surveillance typically sufficient.')
 
-    return base_urgency
+    if '-' in base_urgency:
+        parts = base_urgency.split('-', 1)
+        return (parts[0].strip(), parts[1].strip())
+    return (base_urgency.strip(), '')
 
     
 def pil_from_upload(file_bytes: bytes) -> Image.Image:
@@ -768,14 +771,13 @@ def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_hist
 
     # ── 2. Primary AI Classification Result ──
     elems.append(Paragraph("2.  Primary AI Classification Result", section_s))
-    dynamic_urgency = get_dynamic_urgency(predicted_cls, who_grade)
-    urgency_word    = dynamic_urgency.split('—')[0].strip()
+    urgency_word, urgency_detail = get_dynamic_urgency(predicted_cls, who_grade)
     result_t = Table([[
         Paragraph(f"<font color='{cls_hex.get(predicted_cls,'#00C8B4')}'><b>{CLASS_DISPLAY.get(predicted_cls, predicted_cls)}</b></font>", ParagraphStyle('rr', fontSize=20, fontName='Helvetica-Bold', leading=24)),
         Paragraph(
             f"<b>Model Confidence:</b> {int(confidence*100)}% ({'High Certainty' if confidence>0.85 else 'Moderate Certainty' if confidence>0.6 else 'Low Certainty'})<br/>"
             f"<b>Clinical Urgency:</b> {urgency_word}<br/>"
-            f"<b>Action Required:</b> {dynamic_urgency.split('—',1)[1].strip() if '—' in dynamic_urgency else dynamic_urgency}",
+            f"<b>Action Required:</b> {urgency_detail if urgency_detail else TUMOR_DB[predicted_cls].get('clinical_note', '')[:90]}",
             body_s
         ),
     ]], colWidths=[170, 330])
