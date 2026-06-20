@@ -417,24 +417,7 @@ async function saveAnnotation() {
               </select>
             </div>
 
-            <div>
-              <label style={labelStyle}>IDH Mutation Status <span style={{ opacity: 0.6 }}>(glioma only)</span></label>
-              <select style={{ ...inputStyle, cursor: 'pointer' }} name="idh" value={patient.idh} onChange={handlePatient}>
-                <option value="Unknown">Unknown / Not tested</option>
-                <option value="Mutant">IDH-Mutant</option>
-                <option value="Wildtype">IDH-Wildtype</option>
-              </select>
-            </div>
-
-            <div>
-              <label style={labelStyle}>MGMT Promoter Status <span style={{ opacity: 0.6 }}>(glioma only)</span></label>
-              <select style={{ ...inputStyle, cursor: 'pointer' }} name="mgmt" value={patient.mgmt} onChange={handlePatient}>
-                <option value="Unknown">Unknown / Not tested</option>
-                <option value="Methylated">Methylated</option>
-                <option value="Unmethylated">Unmethylated</option>
-              </select>
-            </div>
-          </div>
+           </div>
           {patient.name && (
             <div style={{ marginTop: '0.8rem', fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--teal)' }}>
               ✓ Patient: {patient.name} · Age: {patient.age || 'N/A'} · Gender: {patient.gender}
@@ -884,6 +867,40 @@ async function saveAnnotation() {
       </div>
     )}
   </>
+)}
+
+            {/* Glioma Molecular Markers — only shown when prediction is glioma */}
+{result.prediction === 'glioma' && (
+  <div style={cardStyle()}>
+    <div style={topLine} />
+    {secTitle('Molecular Markers (Optional)', '🧬')}
+    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.66rem', color: 'var(--text-3)', lineHeight: 1.7, marginBottom: '1rem' }}>
+      If lab-confirmed genomic testing is available, enter it below to refine the Clinical Decision Support synthesis in your PDF report.
+    </div>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+      <div>
+        <label style={labelStyle}>IDH Mutation Status</label>
+        <select style={{ ...inputStyle, cursor: 'pointer', width: '100%' }} name="idh" value={patient.idh} onChange={handlePatient}>
+          <option value="Unknown">Unknown / Not tested</option>
+          <option value="Mutant">IDH-Mutant</option>
+          <option value="Wildtype">IDH-Wildtype</option>
+        </select>
+      </div>
+      <div>
+        <label style={labelStyle}>MGMT Promoter Status</label>
+        <select style={{ ...inputStyle, cursor: 'pointer', width: '100%' }} name="mgmt" value={patient.mgmt} onChange={handlePatient}>
+          <option value="Unknown">Unknown / Not tested</option>
+          <option value="Methylated">Methylated</option>
+          <option value="Unmethylated">Unmethylated</option>
+        </select>
+      </div>
+    </div>
+    {(patient.idh !== 'Unknown' || patient.mgmt !== 'Unknown') && (
+      <div style={{ marginTop: '0.8rem', fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--teal)' }}>
+        ✓ Will appear as Section 2b (Clinical Decision Support) in your downloaded PDF report.
+      </div>
+    )}
+  </div>
 )}
             {/* AI Radiology Report */}
             {result.tumor_info && (
