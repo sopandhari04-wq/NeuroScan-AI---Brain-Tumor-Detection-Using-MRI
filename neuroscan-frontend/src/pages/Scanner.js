@@ -817,6 +817,58 @@ async function saveAnnotation() {
       </div>
     )}
 
+    {/* AI Epistemic Uncertainty */}
+    {result.uncertainty && (
+      <div style={cardStyle()}>
+        <div style={topLine} />
+        {secTitle('AI Epistemic Uncertainty', '🎲')}
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+          <div style={{
+            fontFamily: 'var(--font-display)', fontSize: '1.6rem', fontWeight: 800,
+            color: result.uncertainty.color, lineHeight: 1,
+          }}>
+            {result.uncertainty.profile}
+          </div>
+          <div>
+            <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-1)' }}>
+              {result.uncertainty.label}
+            </div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--text-3)', marginTop: '0.2rem' }}>
+              ±{result.uncertainty.std_pct}% variance across {result.uncertainty.n_variants} Test-Time Augmentations
+            </div>
+          </div>
+        </div>
+
+        {/* Score spread visualization */}
+        <div style={{ marginBottom: '1rem' }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.58rem', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>
+            Score Across Augmented Variants
+          </div>
+          <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'flex-end', height: 60 }}>
+            {result.uncertainty.scores_pct.map((score, i) => (
+              <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.3rem' }}>
+                <div style={{
+                  width: '100%', height: `${score}%`, maxHeight: 50, minHeight: 2,
+                  background: result.uncertainty.color, borderRadius: '3px 3px 0 0', opacity: 0.8,
+                }} />
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.5rem', color: 'var(--text-3)' }}>{score}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{
+          fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--text-3)',
+          lineHeight: 1.7, padding: '0.6rem 0.8rem', background: 'rgba(255,255,255,0.02)',
+          borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)',
+        }}>
+          {result.uncertainty.note} <br/>
+          <span style={{ opacity: 0.7 }}>Method: {result.uncertainty.method}</span>
+        </div>
+      </div>
+    )}
+    
     {/* WHO Grade Estimation */}
     {result.gradcam?.who_grade && (
       <div style={cardStyle()}>
