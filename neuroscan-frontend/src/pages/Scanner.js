@@ -96,6 +96,10 @@ export default function Scanner() {
   const [singlePreview, setSinglePreview]   = useState(null)
   const [fusionFiles, setFusionFiles]       = useState({ t1: null, t1ce: null, t2: null, flair: null })
   const [fusionPreviews, setFusionPreviews] = useState({ t1: null, t1ce: null, t2: null, flair: null })
+  const [volume3dFile, setVolume3dFile] = useState(null)
+  const [volume3dResult, setVolume3dResult] = useState(null)
+  const [volume3dLoading, setVolume3dLoading] = useState(false)
+  const [volume3dError, setVolume3dError] = useState(null)
   const [pdfLoading, setPdfLoading]         = useState(false)
   const [recentScans, setRecentScans]       = useState([])
   const [chatMessages, setChatMessages] = useState([])
@@ -429,7 +433,7 @@ async function saveAnnotation() {
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: '0.5rem', background: 'rgba(0,200,180,0.04)', border: '1px solid rgba(0,200,180,0.12)', borderRadius: '12px', padding: '4px', marginBottom: '2rem' }}>
-          {[['single', '🧠 Single MRI'], ['fusion', '🧬 Multi-Modal Fusion']].map(([key, label]) => (
+          {[['single', '🧠 Single MRI'], ['fusion', '🧬 Multi-Modal Fusion'], ['volume3d', '🧊 3D Volume']].map(([key, label]) => (
             <button key={key} onClick={() => { setActiveTab(key); setResult(null); setError(null) }} style={{
               flex: 1, padding: '0.5rem 1rem', borderRadius: '8px', border: 'none', cursor: 'pointer',
               fontFamily: 'var(--font-mono)', fontSize: '0.72rem', letterSpacing: '0.12em', textTransform: 'uppercase',
@@ -454,6 +458,88 @@ async function saveAnnotation() {
             <button onClick={runSinglePredict} disabled={!singleFile || loading} style={{ width: '100%', padding: '0.75rem', background: !singleFile || loading ? 'rgba(0,200,180,0.1)' : 'linear-gradient(135deg,#00C8B4,#0097A7)', border: 'none', borderRadius: '10px', cursor: !singleFile || loading ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-mono)', fontSize: '0.85rem', fontWeight: 700, color: !singleFile || loading ? 'var(--text-3)' : '#000', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
               {loading ? 'Analysing…' : '🧠 Analyse MRI'}
             </button>
+          </div>
+        )}
+
+        {/* 3D Volume Tab */}
+        {activeTab === 'volume3d' && (
+          <div>
+            <label style={{ display: 'block', border: '1px dashed rgba(255,87,87,0.25)', borderRadius: '12px', padding: '2rem', textAlign: 'center', cursor: 'pointer', background: 'rgba(255,87,87,0.02)', marginBottom: '1rem' }}>
+              <input
+                type="file"
+                accept=".zip"
+                onChange={(e) => {
+                  const f = e.target.files[0]
+                  if (f) { setVolume3dFile(f); setVolume3dResult(null); setVolume3dError(null) }
+                }}
+                style={{ display: 'none' }}
+              />
+              {volume3dFile
+                ? <>
+                    <div style={{ fontSize: '2.5rem', marginBottom: '0.8rem' }}>🧊</div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: '#FF5757' }}>
+                      {volume3dFile.name} — ready to reconstruct
+                    </div>
+                  </>
+                : <>
+                    <div style={{ fontSize: '2.5rem', opacity: 0.3, marginBottom: '0.8rem' }}>🧊</div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)' }}>
+                      Click to upload ZIP of DICOM slices
+                    </div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.58rem', color: 'var(--text-3)', marginTop: '0.4rem', opacity: 0.7 }}>
+                      Minimum 3 slices · .dcm files inside a .zip
+                    </div>
+                  </>
+              }
+            </label>
+
+            <button
+              onClick={async () => {
+                if (!volume3dFile) return
+                setVolume3dLoading(true)
+                setVolume3dError(null)
+                try {
+                  const fd = new FormData()
+                  fd.append('file', volume3dFile)
+                  fd.append('username', username)
+                  const res = await fetch(`${API}/api/predict/volume3d`, { method: 'POST', body: fd })
+                  if (!res.ok) {
+                    const err = await res.json()
+                    throw new Error(err.detail || 'Failed to reconstruct volume')
+                  }
+                  const data = await res.json()
+                  setVolume3dResult(data)
+                } catch (err) {
+                  setVolume3dError(err.message || 'Failed to build 3D volume. Please try again.')
+                } finally {
+                  setVolume3dLoading(false)
+                }
+              }}
+              disabled={!volume3dFile || volume3dLoading}
+              style={{ width: '100%', padding: '0.75rem', background: !volume3dFile || volume3dLoading ? 'rgba(255,87,87,0.1)' : 'linear-gradient(135deg,#FF5757,#CC2222)', border: 'none', borderRadius: '10px', cursor: !volume3dFile || volume3dLoading ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-mono)', fontSize: '0.85rem', fontWeight: 700, color: !volume3dFile || volume3dLoading ? 'var(--text-3)' : '#fff', letterSpacing: '0.08em', textTransform: 'uppercase' }}
+            >
+              {volume3dLoading ? 'Reconstructing 3D Volume…' : '🧊 Build 3D Reconstruction'}
+            </button>
+
+            {volume3dError && (
+              <div style={{ marginTop: '1rem', padding: '0.8rem 1rem', background: 'rgba(255,87,87,0.08)', border: '1px solid rgba(255,87,87,0.2)', borderRadius: '10px', color: '#FF5757', fontFamily: 'var(--font-mono)', fontSize: '0.7rem' }}>
+                ⚠ {volume3dError}
+              </div>
+            )}
+
+            {volume3dResult && (
+              <div style={{ marginTop: '1.5rem' }}>
+                <div style={{ marginBottom: '1rem', padding: '0.8rem 1rem', background: 'rgba(255,87,87,0.04)', border: '1px solid rgba(255,87,87,0.15)', borderRadius: '10px' }}>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.3rem' }}>
+                    Overall Result · {volume3dResult.tumor_slices}/{volume3dResult.total_slices} slices flagged
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.3rem', fontWeight: 700, color: '#FF5757' }}>
+                    {volume3dResult.display_name}
+                  </div>
+                </div>
+                <True3DViewer volumeData={volume3dResult.volume_data} />
+              </div>
+            )}
           </div>
         )}
 
