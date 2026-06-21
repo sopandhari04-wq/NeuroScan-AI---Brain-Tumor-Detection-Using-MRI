@@ -1725,6 +1725,12 @@ async def predict_fusion(
     predicted_idx = int(np.argmax(probs))
     predicted_cls = CLASS_NAMES[predicted_idx]
     confidence    = float(probs[predicted_idx])
+
+    uncertainty = None
+    try:
+        uncertainty = estimate_tta_uncertainty(interpreter, arr, predicted_idx)
+    except Exception as e:
+        print(f"TTA uncertainty error: {e}")
     
     _vol_for_history = None  # filled in below if gradcam succeeds
 
