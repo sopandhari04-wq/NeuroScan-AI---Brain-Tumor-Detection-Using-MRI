@@ -216,6 +216,91 @@ def predict_tflite(interpreter, img_array):
     interpreter.invoke()
     return interpreter.get_tensor(out['index'])[0]
 
+def generate_tta_variants(base_arr):
+    """
+    Generates 5 Test-Time Augmentation variants of a preprocessed image:
+    baseline, horizontal flip, slight rotation, slight zoom/crop, and a
+    brightness/contrast shift. All variants stay at the model's native
+    128x128 input shape.
+    """
+    img = base_arr[0]  # remove batch dim -> (128,128,3), float32 in [0,1]
+    pil_base = Image.fromarray((img * 255).astype(np.uint8))
+
+    variants = []
+
+    # 1. Baseline — untouched
+    variants.append(base_arr)
+
+    # 2. Horizontal flip
+    flipped = pil_base.transpose(Image.FLIP_LEFT_RIGHT)
+    variants.append(np.expand_dims(np.array(flipped, dtype=np.float32) / 255.0, axis=0))
+
+    # 3. Slight rotation (+4 degrees)
+    rotated = pil_base.rotate(4, resample=Image.BILINEAR, fillcolor=(0, 0, 0))
+    variants.append(np.expand_dims(np.array(rotated, dtype=np.float32) / 255.0, axis=0))
+
+    # 4. Slight zoom (5%) + crop back to 128x128
+    w, h = pil_base.size
+    zoom_factor = 1.05
+    zoomed = pil_base.resize((int(w * zoom_factor), int(h * zoom_factor)), Image.BILINEAR)
+    left = (zoomed.width - w) // 2
+    top  = (zoomed.height - h) // 2
+    cropped = zoomed.crop((left, top, left + w, top + h))
+    variants.append(np.expand_dims(np.array(cropped, dtype=np.float32) / 255.0, axis=0))
+
+    # 5. Brightness/contrast shift
+    from PIL import ImageEnhance
+    brightness = ImageEnhance.Brightness(pil_base).enhance(1.08)
+    variants.append(np.expand_dims(np.array(brightness, dtype=np.float32) / 255.0, axis=0))
+
+    return variants
+
+
+def estimate_tta_uncertainty(interpreter, base_arr, predicted_idx):
+    """
+    Runs the 5 TTA variants through the model and measures the standard
+    deviation of the predicted class's probability across all runs.
+    Low std = stable/robust prediction. High std = fragile, sensitive to
+    minor geometric/photometric perturbation — flagged for manual review.
+    """
+    variants = generate_tta_variants(base_arr)
+    class_scores = []
+
+    for variant in variants:
+        probs = predict_tflite(interpreter, variant)
+        class_scores.append(float(probs[predicted_idx]))
+
+    mean_score = float(np.mean(class_scores))
+    std_score  = float(np.std(class_scores))
+
+    if std_score < 0.03:
+        profile = "LOW"
+        label   = "Robust Inference Balance"
+        color   = "#0CF2C8"
+        note    = f"Model prediction remains consistent (±{round(std_score*100,1)}%) across Test-Time Augmentations (TTA)."
+    elif std_score < 0.08:
+        profile = "MODERATE"
+        label   = "Acceptable Stability"
+        color   = "#FFAD3B"
+        note    = f"Model prediction shows mild variation (±{round(std_score*100,1)}%) under minor perturbations. Within normal range."
+    else:
+        profile = "HIGH"
+        label   = "Boundary Fluctuation Detected"
+        color   = "#FF5757"
+        note    = f"Model prediction exhibits high sensitivity (±{round(std_score*100,1)}%) to minor geometric/photometric variation. Exercise caution; manual radiological confirmation highly advised."
+
+    return {
+        "profile":       profile,
+        "label":         label,
+        "color":         color,
+        "note":          note,
+        "mean_pct":      round(mean_score * 100, 1),
+        "std_pct":       round(std_score * 100, 1),
+        "scores_pct":    [round(s * 100, 1) for s in class_scores],
+        "n_variants":    len(variants),
+        "method":        "Test-Time Augmentation (TTA) — flip, rotation, zoom, brightness",
+    }
+
 def compute_gradcam(feat_model, img_array):
     features = feat_model(img_array, training=False)
     cam = np.mean(features[0].numpy(), axis=-1)
