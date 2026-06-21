@@ -204,7 +204,8 @@ export default function True3DViewer({ volumeData }) {
 
   if (!volumeData) return null
 
-  const { dice_scores, volumes_voxels, case_id, model } = volumeData
+ const { dice_scores, volumes_voxels, case_id, model } = volumeData
+  const hasDiceScores = dice_scores !== null && dice_scores !== undefined
 
   return (
     <div style={{ border: '1px solid rgba(255,87,87,0.2)', borderRadius: '16px', background: 'rgba(8,12,20,0.9)', overflow: 'hidden', marginBottom: '1.5rem', position: 'relative' }}>
@@ -216,7 +217,7 @@ export default function True3DViewer({ volumeData }) {
             True 3D <span style={{ color: '#FF5757' }}>Volumetric Segmentation</span>
           </span>
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.55rem', color: 'var(--text-3)', background: 'rgba(255,255,255,0.04)', padding: '0.15rem 0.5rem', borderRadius: '4px' }}>
-            REAL MONAI BraTS MODEL · {case_id}
+            {hasDiceScores ? 'VALIDATED MONAI MODEL' : 'LIVE PER-SLICE RECONSTRUCTION'} · {case_id}
           </span>
         </div>
         <button onClick={() => setAutoRotate(!autoRotate)} style={{ background: autoRotate ? 'rgba(255,87,87,0.18)' : 'rgba(255,255,255,0.04)', border: `1px solid ${autoRotate ? 'rgba(255,87,87,0.44)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '6px', color: autoRotate ? '#FF5757' : 'var(--text-3)', fontFamily: 'var(--font-mono)', fontSize: '0.58rem', padding: '0.25rem 0.6rem', cursor: 'pointer' }}>
@@ -256,15 +257,15 @@ export default function True3DViewer({ volumeData }) {
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color, fontWeight: 700 }}>{label}</span>
             </div>
             <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-1)' }}>
-              Dice {dice}
+              {dice !== null ? `Dice ${dice}` : `${voxels.toLocaleString()} vox`}
             </div>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.55rem', color: 'var(--text-3)' }}>
-              {voxels.toLocaleString()} voxels
+              {dice !== null ? `${voxels.toLocaleString()} voxels` : 'no ground truth'}
             </div>
           </div>
         ))}
         <div style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: '0.55rem', color: 'var(--text-3)', maxWidth: 260, textAlign: 'right' }}>
-          Validated against expert ground-truth annotation · {model}
+          {hasDiceScores ? 'Validated against expert ground-truth annotation' : 'Live reconstruction — no ground truth available'} · {model}
         </div>
       </div>
     </div>
