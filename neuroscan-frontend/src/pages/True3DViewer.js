@@ -247,10 +247,11 @@ export default function True3DViewer({ volumeData }) {
       {/* Validation metrics */}
       <div style={{ padding: '0.8rem 1.2rem', borderTop: '1px solid rgba(255,87,87,0.15)', display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
         {[
-          ['ET', dice_scores.et, volumes_voxels.et, '#FF5757'],
-          ['TC', dice_scores.tc, volumes_voxels.tc, '#FFAD3B'],
-          ['WT', dice_scores.wt, volumes_voxels.wt, '#FFE566'],
-        ].map(([label, dice, voxels, color]) => (
+          ['ET', hasDiceScores ? dice_scores.et : null, volumes_voxels.et, '#FF5757'],
+          ['TC', hasDiceScores ? dice_scores.tc : null, volumes_voxels.tc, '#FFAD3B'],
+          ['WT', hasDiceScores ? dice_scores.wt : null, volumes_voxels.wt, '#FFE566'],
+          
+          ].map(([label, dice, voxels, color]) => (
           <div key={label}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.15rem' }}>
               <div style={{ width: 8, height: 8, borderRadius: '50%', background: color }} />
