@@ -948,7 +948,8 @@ def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_hist
         elems += [Spacer(1, 4), cdss_header, Spacer(1, 5)]
 
         # Flag if molecular markers shift the grade/urgency away from pure imaging estimate
-        if who_grade and cdss_result.get('who_grade_trend') and who_grade.get('grade') not in cdss_result['who_grade_trend']:
+        # (glioma only — meningioma/other types never show this note)
+        if cdss_result.get('show_molecular_data') and who_grade and cdss_result.get('who_grade_trend') and who_grade.get('grade') not in cdss_result['who_grade_trend']:
             elems.append(Paragraph(
                 "<b>⚠ Note:</b> The image-based WHO Grade estimate in Section 2a differs from the molecular-marker-adjusted "
                 "trend below. This is expected — radiomics alone cannot detect genomic features like IDH/MGMT status, which "
@@ -957,10 +958,11 @@ def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_hist
             ))
             elems.append(Spacer(1, 6))
 
-        elems.append(Paragraph(
-            f"<b>Molecular Markers (clinician-provided):</b> IDH Status: {idh} &nbsp;·&nbsp; MGMT Status: {mgmt}",
-            body_s
-        ))
+        if cdss_result.get('show_molecular_data'):
+            elems.append(Paragraph(
+                f"<b>Molecular Markers (clinician-provided):</b> IDH Status: {idh} &nbsp;·&nbsp; MGMT Status: {mgmt}",
+                body_s
+            ))
         cdss_rows = [
             ["Refined Clinical Title", cdss_result.get('refined_title','—')],
             ["WHO Grade Trend",        cdss_result.get('who_grade_trend','—')],
