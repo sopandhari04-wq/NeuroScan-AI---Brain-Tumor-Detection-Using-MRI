@@ -1807,6 +1807,109 @@ async def predict_fusion(
         "uncertainty": uncertainty,
     }
 
+# ── 3D Volume Reconstruction (multi-slice DICOM ZIP) ───────────────────────
+@app.post("/api/predict/volume3d")
+async def predict_volume_3d(
+    file:     UploadFile = File(...),
+    username: str = Form("anonymous"),
+):
+    contents = await file.read()
+
+    # ── Extract DICOM slices from ZIP ──
+    slices_data = []
+    try:
+        with zipfile.ZipFile(io.BytesIO(contents)) as zf:
+            dcm_files = sorted([f for f in zf.namelist() if f.lower().endswith('.dcm')])
+            if not dcm_files:
+                raise HTTPException(status_code=400, detail="No DICOM files found in ZIP")
+            if len(dcm_files) > 60:
+                dcm_files = dcm_files[:60]
+            for dcm_file in dcm_files:
+                dcm_bytes = zf.read(dcm_file)
+                try:
+                    pil_img, _ = load_dicom(dcm_bytes)
+                    slices_data.append(pil_img)
+                except Exception:
+                    continue
+    except zipfile.BadZipFile:
+        raise HTTPException(status_code=400, detail="Invalid ZIP file")
+
+    if len(slices_data) < 3:
+        raise HTTPException(status_code=400, detail="Need at least 3 valid DICOM slices for a 3D reconstruction")
+
+    print(f"Building 3D volume from {len(slices_data)} real slices")
+
+    interpreter = get_tflite()
+    feat_model  = get_feat_model()
+
+    slice_predictions = []
+    et_masks, tc_masks, wt_masks, brain_masks = [], [], [], []
+
+    for pil_img in slices_data:
+        arr   = preprocess(pil_img)
+        probs = predict_tflite(interpreter, arr)
+        predicted_idx = int(np.argmax(probs))
+        predicted_cls = CLASS_NAMES[predicted_idx]
+        slice_predictions.append(predicted_cls)
+
+        cam = compute_gradcam(feat_model, arr)
+
+        et_masks.append((cam > 0.75).astype(np.uint8))
+        tc_masks.append((cam > 0.50).astype(np.uint8))
+        wt_masks.append((cam > 0.25).astype(np.uint8))
+
+        gray = np.array(pil_img.convert('L').resize((128, 128)), dtype=np.float32) / 255.0
+        brain_masks.append((gray > 0.08).astype(np.uint8))
+
+    et_vol    = np.stack(et_masks, axis=-1)
+    tc_vol    = np.stack(tc_masks, axis=-1)
+    wt_vol    = np.stack(wt_masks, axis=-1)
+    brain_vol = np.stack(brain_masks, axis=-1)
+
+    def mask_to_points(vol, max_points):
+        coords = np.argwhere(vol > 0)
+        if len(coords) > max_points:
+            idx = np.random.choice(len(coords), max_points, replace=False)
+            coords = coords[idx]
+        return coords.tolist()
+
+    et_points    = mask_to_points(et_vol, 2000)
+    tc_points    = mask_to_points(tc_vol, 3000)
+    wt_points    = mask_to_points(wt_vol, 4000)
+    brain_points = mask_to_points(brain_vol, 5000)
+
+    from collections import Counter
+    tumor_slices = [p for p in slice_predictions if p != 'notumor']
+    if len(tumor_slices) > len(slice_predictions) * 0.25:
+        overall_pred = Counter(tumor_slices).most_common(1)[0][0]
+    else:
+        overall_pred = 'notumor'
+
+    add_scan_record(username, overall_pred, len(tumor_slices) / len(slice_predictions), "3D Volume (Multi-Slice)")
+
+    return {
+        "prediction":      overall_pred,
+        "display_name":    CLASS_DISPLAY[overall_pred],
+        "total_slices":    len(slices_data),
+        "tumor_slices":    len(tumor_slices),
+        "volume_data": {
+            "case_id":         f"live-{username}",
+            "shape":           [128, 128, len(slices_data)],
+            "brain_points":    brain_points,
+            "et_points":       et_points,
+            "tc_points":       tc_points,
+            "wt_points":       wt_points,
+            "volumes_voxels": {
+                "et": int(et_vol.sum()),
+                "tc": int(tc_vol.sum()),
+                "wt": int(wt_vol.sum()),
+            },
+            "dice_scores": None,
+            "model": "2D CNN classifier + Grad-CAM, stacked across uploaded slices (not a true 3D model)",
+        }
+    }
+
+
 # ── PDF Report ─────────────────────────────────────────────────────────────────
 @app.post("/api/report")
 async def download_report(
