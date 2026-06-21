@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react'
 import True3DViewer from './True3DViewer'
 import volumeData from '../data/brats_3d_volume.json'
 
