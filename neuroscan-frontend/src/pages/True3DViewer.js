@@ -18,6 +18,11 @@ export default function True3DViewer({ volumeData }) {
   const [autoRotate, setAutoRotate]   = useState(true)
   const [activeLayer, setActiveLayer] = useState('all')
   const [brainOpacity, setBrainOpacity] = useState(0.12)
+  const autoRotateRef = useRef(true)
+  const brainOpacityRef = useRef(0.12)
+
+  useEffect(() => { autoRotateRef.current = autoRotate }, [autoRotate])
+  useEffect(() => { brainOpacityRef.current = brainOpacity }, [brainOpacity])
 
   useEffect(() => {
     const mount = mountRef.current
@@ -68,7 +73,7 @@ export default function True3DViewer({ volumeData }) {
     const brainGeo = pointsToGeometry(brain_points)
     const brainMat = new THREE.PointsMaterial({
       color: REGION_COLORS.brain, size: 0.035, transparent: true,
-      opacity: brainOpacity, sizeAttenuation: true,
+      opacity: brainOpacityRef.current, sizeAttenuation: true,
     })
     const brainPoints = new THREE.Points(brainGeo, brainMat)
     brainPoints.name = 'brain'
@@ -125,7 +130,7 @@ export default function True3DViewer({ volumeData }) {
       frameRef.current = requestAnimationFrame(animate)
       time += 0.01
 
-      if (autoRotate && !isDragging.current) {
+      if (autoRotateRef.current && !isDragging.current) {
         rotRef.current.y += 0.004
       }
       rootGroup.rotation.x = rotRef.current.x
