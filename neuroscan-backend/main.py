@@ -656,7 +656,10 @@ def pil_from_upload(file_bytes: bytes) -> Image.Image:
     return Image.open(BytesIO(file_bytes)).convert("RGB")
 
 def load_dicom(file_bytes: bytes):
-    ds = pydicom.dcmread(io.BytesIO(file_bytes))
+    try:
+        ds = pydicom.dcmread(io.BytesIO(file_bytes))
+    except pydicom.errors.InvalidDicomError:
+        ds = pydicom.dcmread(io.BytesIO(file_bytes), force=True)
 
     # Extract metadata before stripping
     dicom_info = {
