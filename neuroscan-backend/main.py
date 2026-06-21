@@ -912,7 +912,7 @@ def calculate_volume_trend(scan_history, predicted_cls):
     }
 def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_history, cam_analysis=None,
                   patient_name=None, patient_age=None, patient_gender=None, who_grade=None, probabilities=None,
-                  cdss_result=None, original_img=None, overlay_img=None, volume_trend=None):
+                  cdss_result=None, original_img=None, overlay_img=None, volume_trend=None, uncertainty=None):
     import hashlib
     buffer  = BytesIO()
     doc     = SimpleDocTemplate(buffer, pagesize=letter, topMargin=36, bottomMargin=36, leftMargin=46, rightMargin=46)
@@ -1003,6 +1003,25 @@ def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_hist
         ('PADDING', (0,0), (-1,-1), 10),
     ]))
     elems += [result_t, Spacer(1, 8)]
+
+    # AI Epistemic Uncertainty (Test-Time Augmentation)
+    if uncertainty:
+        unc_color = colors.HexColor(uncertainty['color'])
+        unc_t = Table([[
+            Paragraph(
+                f"<b>AI Epistemic Uncertainty:</b> {uncertainty['profile']} ({uncertainty['label']}) — "
+                f"±{uncertainty['std_pct']}% variance across {uncertainty['n_variants']} Test-Time Augmentations",
+                ParagraphStyle('unc', fontSize=8.4, textColor=unc_color, leading=12)
+            ),
+        ]], colWidths=[500])
+        unc_t.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F7FAFC')),
+            ('BOX', (0,0), (-1,-1), 0.6, unc_color),
+            ('PADDING', (0,0), (-1,-1), 7),
+        ]))
+        elems += [unc_t, Spacer(1, 4)]
+        elems.append(Paragraph(f"<i>{uncertainty['note']}</i>", ParagraphStyle('unc_note', fontSize=7, textColor=colors.HexColor('#8A8A8A'), leading=11)))
+        elems.append(Spacer(1, 8))
 
     # WHO grade chip (if applicable)
     if who_grade:
@@ -1785,6 +1804,7 @@ async def predict_fusion(
         "overlay_image": overlay_b64,
         "preprocessing": preprocessing,
         "volume_trend":  volume_trend,
+        "uncertainty": uncertainty,
     }
 
 # ── PDF Report ─────────────────────────────────────────────────────────────────
@@ -1838,6 +1858,12 @@ async def download_report(
     volume_trend = calculate_volume_trend(scan_history, predicted_cls)
     probabilities = {CLASS_NAMES[i]: float(probs[i]) for i in range(len(CLASS_NAMES))}
    
+    uncertainty = None
+    try:
+        uncertainty = estimate_tta_uncertainty(interpreter, arr, predicted_idx)
+    except Exception as e:
+        print(f"TTA uncertainty error in PDF route: {e}")
+
     pdf_buf       = generate_pdf(
         predicted_cls, confidence, mode, username, name,
         scan_history, cam_data,
@@ -1850,6 +1876,7 @@ async def download_report(
         original_img=pil_img,
         overlay_img=overlay_img,
         volume_trend=volume_trend,
+        uncertainty=uncertainty,
     )
 
     return StreamingResponse(
