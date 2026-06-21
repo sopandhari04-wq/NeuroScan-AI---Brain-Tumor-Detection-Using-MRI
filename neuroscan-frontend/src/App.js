@@ -10,6 +10,7 @@ import Dashboard from './pages/Dashboard'
 import PatientDashboard from './pages/PatientDashboard'
 import AdminDashboard from './pages/AdminDashboard'
 import Scanner from './pages/Scanner'
+import True3DPage from './pages/True3DPage'
 import ScanComparison from './pages/ScanComparison'
 import Statistics from './pages/Statistics'
 import PatientTimeline from './pages/PatientTimeline'
@@ -131,6 +132,8 @@ export default function App() {
 
         {/* Scanner — all roles */}
         <Route path="/scanner"   element={<ProtectedRoute><Scanner /></ProtectedRoute>} />
+
+        <Route path="/true-3d" element={<ProtectedRoute><True3DPage /></ProtectedRoute>} />
 
         {/* Scan Comparison — all roles */}
         <Route path="/compare"   element={<ProtectedRoute><ScanComparison /></ProtectedRoute>} />

@@ -21,6 +21,7 @@ export default function Navbar() {
         role === 'doctor' ? { to: '/dashboard', label: 'Dashboard' } :
         { to: '/patient', label: 'Dashboard' },
         { to: '/scanner', label: 'Scanner' },
+        { to: '/true-3d', label: 'True 3D' },
         { to: '/compare', label: 'Compare' },
         ...(role === 'doctor' ? [{ to: '/my-patients', label: 'My Patients' }] : []),
         { to: '/timeline', label: 'Timeline' },
