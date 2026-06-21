@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../App'
 import { supabase } from '../lib/supabase'
 import Brain3DViewer from './Brain3DViewer'
+import True3DViewer from './True3DViewer'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 
 
