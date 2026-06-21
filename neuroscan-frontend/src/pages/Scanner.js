@@ -157,6 +157,7 @@ export default function Scanner() {
       const data = await res.json()
       setResult({ ...data, mode: 'Single MRI' })
       console.log('DICOM INFO:', data.dicom_info)
+      console.log('UNCERTAINTY:', data.uncertainty)
       console.log('PREPROCESSING:', data.preprocessing)
       fetchRecentScans(username, setRecentScans)
     } catch {
@@ -868,7 +869,7 @@ async function saveAnnotation() {
         </div>
       </div>
     )}
-    
+
     {/* WHO Grade Estimation */}
     {result.gradcam?.who_grade && (
       <div style={cardStyle()}>
