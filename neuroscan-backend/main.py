@@ -515,19 +515,21 @@ def get_dynamic_urgency(predicted_cls, who_grade):
 def evaluate_clinical_rules(predicted_cls, idh_status, mgmt_status):
     """
     Deterministic Clinical Decision Support System (CDSS) rules engine.
-    Consumes the CNN's raw image classification output and combines it with
-    clinician-provided molecular markers using documented WHO CNS tumor
-    classification guidelines. This is NOT a trained fusion model — the CNN
-    never sees this metadata; it is a separate, traceable expert-system layer.
+    Molecular markers (IDH/MGMT) are only clinically relevant for glioma.
+    For all other tumor types, molecular inputs are explicitly ignored and
+    a clean, standard pathway profile is shown instead.
     """
+    show_molecular_data = (predicted_cls == 'glioma')
+
     output = {
+        "show_molecular_data": show_molecular_data,
         "refined_title":      CLASS_DISPLAY.get(predicted_cls, predicted_cls),
         "who_grade_trend":    "Awaiting histopathological verification",
         "prognostic_profile": "Standard prognostic markers apply based on general pathology.",
         "urgency_level":      "MODERATE",
         "custom_pathways":    [],
-        "idh_status":         idh_status,
-        "mgmt_status":        mgmt_status,
+        "idh_status":         idh_status if show_molecular_data else None,
+        "mgmt_status":        mgmt_status if show_molecular_data else None,
     }
 
     if predicted_cls == 'glioma':
@@ -552,6 +554,7 @@ def evaluate_clinical_rules(predicted_cls, idh_status, mgmt_status):
             output["custom_pathways"].append(("Chemotherapy Response", "Temozolomide (TMZ) protocol: lower alkylating sensitivity noted. Alternative clinical trial frameworks or combination regimens encouraged."))
 
     elif predicted_cls == 'meningioma':
+        # Strictly standard meningioma profile — molecular dropdown inputs are ignored
         output["refined_title"]      = "Meningioma Phenotype"
         output["who_grade_trend"]    = "I — Benign Meningioma"
         output["prognostic_profile"] = "Excellent outlook for WHO Grade I structures; 10-year recurrence-free survival exceeds 80% following complete macroscopic resection."
