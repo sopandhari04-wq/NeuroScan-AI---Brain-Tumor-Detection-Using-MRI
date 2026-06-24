@@ -5,7 +5,6 @@ import demoVolumeData from '../data/brats_3d_volume.json'
 
 const API = process.env.REACT_APP_API_URL || 'https://neuroscan-ai-brain-tumor-detection-using.onrender.com'
 
-const CLASS_DISPLAY = { glioma: 'Glioma', meningioma: 'Meningioma', notumor: 'No Tumor', pituitary: 'Pituitary' }
 const CLASS_COLORS  = { glioma: '#FF5757', meningioma: '#FFAD3B', notumor: '#0CF2C8', pituitary: '#7B82F5' }
 
 export default function True3DPage() {
