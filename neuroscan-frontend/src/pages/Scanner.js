@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../App'
 import { supabase } from '../lib/supabase'
 import Brain3DViewer from './Brain3DViewer'
-import True3DViewer from './True3DViewer'
+
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 
 
@@ -97,10 +97,8 @@ export default function Scanner() {
   const [singlePreview, setSinglePreview]   = useState(null)
   const [fusionFiles, setFusionFiles]       = useState({ t1: null, t1ce: null, t2: null, flair: null })
   const [fusionPreviews, setFusionPreviews] = useState({ t1: null, t1ce: null, t2: null, flair: null })
-  const [volume3dFile, setVolume3dFile] = useState(null)
-  const [volume3dResult, setVolume3dResult] = useState(null)
-  const [volume3dLoading, setVolume3dLoading] = useState(false)
-  const [volume3dError, setVolume3dError] = useState(null)
+ 
+  
   const [pdfLoading, setPdfLoading]         = useState(false)
   const [recentScans, setRecentScans]       = useState([])
   const [chatMessages, setChatMessages] = useState([])
