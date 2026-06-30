@@ -385,7 +385,7 @@ async function saveAnnotation() {
         </div>
       </div>
 
-      <div style={{ flex: 1, maxWidth: 900, margin: '0 auto', width: '100%', padding: '2rem' }}>
+      <div style={{ flex: 1, maxWidth: 1000, margin: '0 auto', width: '100%', padding: '2rem' }}>
 
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
@@ -493,8 +493,24 @@ async function saveAnnotation() {
         )}
 
         {/* ── RESULTS ── */}
+        {result && !loading && result.prediction !== 'invalid' && (
+          <div style={{
+            position: 'sticky', top: 'calc(var(--nav-h) + 8px)', zIndex: 10,
+            display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap',
+            padding: '0.6rem 1rem', borderRadius: '10px', marginBottom: '1rem',
+            background: 'rgba(10,13,24,0.92)', backdropFilter: 'blur(10px)',
+            border: `1px solid ${accent}33`,
+          }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: accent, flexShrink: 0 }} />
+            <span style={{ fontFamily: 'var(--font-display)', fontSize: '0.9rem', fontWeight: 800, color: accent }}>{result.display_name}</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-3)' }}>{Math.round(result.confidence * 100)}% confidence</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--text-3)', marginLeft: 'auto' }}>{result.mode}</span>
+          </div>
+        )}
+
+        {/* ── RESULTS ── */}
         {result && !loading && (
-          <div style={{ marginTop: '2rem' }}>
+          <div style={{ marginTop: '0.5rem' }}>
 
             {result.prediction === 'invalid' ? (
               <div style={{ padding: '1.5rem', borderRadius: '12px', background: 'rgba(255,75,75,0.08)', border: '1px solid rgba(255,75,75,0.2)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#FF4B4B', textAlign: 'center' }}>
