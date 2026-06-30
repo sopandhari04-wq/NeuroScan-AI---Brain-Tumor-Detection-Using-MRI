@@ -20,6 +20,16 @@ function CustomTooltip({ active, payload, label }) {
   )
 }
 
+function VolumeTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null
+  return (
+    <div style={{ background: 'rgba(11,14,24,0.97)', border: '1px solid rgba(123,130,245,0.4)', borderRadius: '10px', padding: '0.7rem 1rem', fontFamily: 'var(--font-mono)', fontSize: '0.65rem' }}>
+      <div style={{ color: 'var(--text-3)', marginBottom: '0.3rem' }}>{label}</div>
+      <div style={{ color: '#7B82F5', fontWeight: 700 }}>{payload[0].value} cm³</div>
+    </div>
+  )
+}
+
 function AlertBanner({ type, message }) {
   const styles = {
     critical: { bg: 'rgba(255,87,87,0.08)', border: 'rgba(255,87,87,0.3)', color: '#FF5757', icon: '🚨' },
@@ -62,14 +72,16 @@ export default function PatientTimeline() {
     month: 'short', day: 'numeric', timeZone: 'Asia/Kolkata'
   })
 
-  // Chart data
   const chartData = scans.map(s => ({
     date:       formatShort(s.date),
     confidence: Math.round(s.confidence * 100),
     prediction: s.prediction,
   }))
 
-  // Detect changes between consecutive scans
+  const volumeChartData = scans
+    .filter(s => s.est_volume_cm3 != null && s.prediction !== 'notumor')
+    .map(s => ({ date: formatShort(s.date), volume: s.est_volume_cm3 }))
+
   function getChange(prev, curr) {
     if (!prev) return null
     const prevTumor = prev.prediction !== 'notumor'
@@ -82,7 +94,6 @@ export default function PatientTimeline() {
     return null
   }
 
-  // Generate alerts based on scan history
   const alerts = []
   if (scans.length >= 2) {
     const latest  = scans[scans.length - 1]
@@ -101,7 +112,6 @@ export default function PatientTimeline() {
       alerts.push({ type: 'good', message: `Confidence decreased from ${Math.round(prev.confidence * 100)}% to ${Math.round(latest.confidence * 100)}% — possible improvement. Continue scheduled follow-ups.` })
     }
 
-    // Check for consistently high tumor confidence
     const lastThree = scans.slice(-3).filter(s => s.prediction !== 'notumor' && s.confidence > 0.85)
     if (lastThree.length === 3) {
       alerts.push({ type: 'critical', message: 'High confidence tumor detected in last 3 consecutive scans. Urgent medical evaluation recommended.' })
@@ -121,7 +131,7 @@ export default function PatientTimeline() {
   const avgConf      = scans.length ? Math.round(scans.reduce((a, s) => a + s.confidence, 0) / scans.length * 100) : 0
 
   return (
-    <div style={{ padding: 'calc(var(--nav-h) + 2.5rem) 2rem 4rem', maxWidth: 900, margin: '0 auto' }}>
+    <div style={{ padding: 'calc(var(--nav-h) + 2.5rem) 2rem 4rem', maxWidth: 1000, margin: '0 auto' }}>
 
       {/* Header */}
       <div style={{ marginBottom: '2rem' }}>
@@ -146,7 +156,6 @@ export default function PatientTimeline() {
         </div>
       ) : (
         <>
-          {/* Alerts */}
           {alerts.length > 0 && (
             <div style={{ marginBottom: '1.5rem' }}>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.58rem', letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '0.75rem' }}>
@@ -156,7 +165,6 @@ export default function PatientTimeline() {
             </div>
           )}
 
-          {/* Summary cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '0.85rem', marginBottom: '2rem' }}>
             {[
               { val: scans.length,  label: 'Total Scans',    color: '#7B82F5' },
@@ -174,34 +182,58 @@ export default function PatientTimeline() {
 
           <div style={{ height: 1, background: 'linear-gradient(90deg,transparent,rgba(12,242,200,0.12),transparent)', margin: '1.5rem 0' }} />
 
-          {/* Confidence trend chart */}
-          {scans.length >= 2 && (
-            <div className="card" style={{ padding: '1.5rem 1.4rem', marginBottom: '1.5rem' }}>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.58rem', letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--teal)', opacity: 0.8, marginBottom: '1rem' }}>
-                Confidence Trend Over Time
-              </div>
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={chartData}>
-                  <CartesianGrid stroke="rgba(255,255,255,0.03)" />
-                  <XAxis dataKey="date" tick={{ fontFamily: 'var(--font-mono)', fontSize: 9, fill: '#3D4E60' }} axisLine={false} tickLine={false} />
-                  <YAxis domain={[0, 100]} tick={{ fontFamily: 'var(--font-mono)', fontSize: 10, fill: '#3D4E60' }} axisLine={false} tickLine={false} width={30} />
-                  <ReferenceLine y={60} stroke="rgba(255,87,87,0.3)" strokeDasharray="4 4" label={{ value: '60% threshold', fill: '#FF5757', fontSize: 9, fontFamily: 'var(--font-mono)' }} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Line type="monotone" dataKey="confidence" stroke="var(--teal)" strokeWidth={2} dot={(props) => {
-                    const { cx, cy, payload } = props
-                    const c = CLS_COLORS[payload.prediction] || 'var(--teal)'
-                    return <circle key={payload.date} cx={cx} cy={cy} r={5} fill={c} stroke="rgba(0,0,0,0.3)" strokeWidth={1} />
-                  }} name="Confidence %" />
-                </LineChart>
-              </ResponsiveContainer>
-              <div style={{ display: 'flex', gap: '1rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
-                {Object.entries(CLS_COLORS).map(([k, c]) => (
-                  <div key={k} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontFamily: 'var(--font-mono)', fontSize: '0.58rem', color: 'var(--text-3)' }}>
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: c }} />
-                    {CLS_LABEL[k]}
+          {/* Charts row */}
+          {(scans.length >= 2 || volumeChartData.length >= 2) && (
+            <div style={{ display: 'grid', gridTemplateColumns: volumeChartData.length >= 2 ? '1fr 1fr' : '1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+              {scans.length >= 2 && (
+                <div className="card" style={{ padding: '1.5rem 1.4rem' }}>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.58rem', letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--teal)', opacity: 0.8, marginBottom: '1rem' }}>
+                    Confidence Trend
                   </div>
-                ))}
-              </div>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <LineChart data={chartData}>
+                      <CartesianGrid stroke="rgba(255,255,255,0.03)" />
+                      <XAxis dataKey="date" tick={{ fontFamily: 'var(--font-mono)', fontSize: 9, fill: '#3D4E60' }} axisLine={false} tickLine={false} />
+                      <YAxis domain={[0, 100]} tick={{ fontFamily: 'var(--font-mono)', fontSize: 10, fill: '#3D4E60' }} axisLine={false} tickLine={false} width={30} />
+                      <ReferenceLine y={60} stroke="rgba(255,87,87,0.3)" strokeDasharray="4 4" label={{ value: '60%', fill: '#FF5757', fontSize: 9, fontFamily: 'var(--font-mono)' }} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Line type="monotone" dataKey="confidence" stroke="var(--teal)" strokeWidth={2} dot={(props) => {
+                        const { cx, cy, payload } = props
+                        const c = CLS_COLORS[payload.prediction] || 'var(--teal)'
+                        return <circle key={payload.date} cx={cx} cy={cy} r={5} fill={c} stroke="rgba(0,0,0,0.3)" strokeWidth={1} />
+                      }} name="Confidence %" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                  <div style={{ display: 'flex', gap: '1rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
+                    {Object.entries(CLS_COLORS).map(([k, c]) => (
+                      <div key={k} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontFamily: 'var(--font-mono)', fontSize: '0.58rem', color: 'var(--text-3)' }}>
+                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: c }} />
+                        {CLS_LABEL[k]}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {volumeChartData.length >= 2 && (
+                <div className="card" style={{ padding: '1.5rem 1.4rem' }}>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.58rem', letterSpacing: '0.22em', textTransform: 'uppercase', color: '#7B82F5', opacity: 0.85, marginBottom: '1rem' }}>
+                    Tumor Volume Trend
+                  </div>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <LineChart data={volumeChartData}>
+                      <CartesianGrid stroke="rgba(255,255,255,0.03)" />
+                      <XAxis dataKey="date" tick={{ fontFamily: 'var(--font-mono)', fontSize: 9, fill: '#3D4E60' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontFamily: 'var(--font-mono)', fontSize: 10, fill: '#3D4E60' }} axisLine={false} tickLine={false} width={36} />
+                      <Tooltip content={<VolumeTooltip />} />
+                      <Line type="monotone" dataKey="volume" stroke="#7B82F5" strokeWidth={2} dot={{ r: 4, fill: '#7B82F5' }} name="Volume (cm³)" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.56rem', color: 'var(--text-3)', marginTop: '0.75rem' }}>
+                    Tumor-positive scans only · 2D single-slice volume approximation
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -211,7 +243,6 @@ export default function PatientTimeline() {
               Scan Timeline — Chronological
             </div>
             <div style={{ position: 'relative' }}>
-              {/* Vertical line */}
               <div style={{ position: 'absolute', left: 16, top: 0, bottom: 0, width: 1, background: 'rgba(255,255,255,0.06)' }} />
 
               {[...scans].reverse().map((s, i) => {
@@ -230,10 +261,8 @@ export default function PatientTimeline() {
 
                 return (
                   <div key={s.id} style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', paddingLeft: '2.5rem', position: 'relative' }}>
-                    {/* Timeline dot */}
                     <div style={{ position: 'absolute', left: 10, top: 16, width: 14, height: 14, borderRadius: '50%', background: c, border: '2px solid rgba(0,0,0,0.4)', flexShrink: 0, zIndex: 1 }} />
 
-                    {/* Card */}
                     <div style={{ flex: 1, background: isTumor ? `${c}06` : 'rgba(255,255,255,0.015)', border: `1px solid ${isTumor ? c + '22' : 'rgba(255,255,255,0.06)'}`, borderRadius: '12px', padding: '1rem 1.2rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
                         <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--text-3)' }}>{formatDate(s.date)}</div>
@@ -245,10 +274,12 @@ export default function PatientTimeline() {
                             {changeBadge.label}
                           </span>
                         )}
+                        {s.est_volume_cm3 != null && (
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: '#7B82F5' }}>{s.est_volume_cm3} cm³</span>
+                        )}
                         <div style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--text-3)' }}>{s.mode || 'Single MRI'}</div>
                       </div>
 
-                      {/* Confidence bar */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                         <div style={{ flex: 1, height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 99, overflow: 'hidden' }}>
                           <div style={{ height: '100%', width: `${Math.round(s.confidence * 100)}%`, background: `linear-gradient(90deg,${c}88,${c})`, borderRadius: 99 }} />
@@ -262,7 +293,6 @@ export default function PatientTimeline() {
             </div>
           </div>
 
-          {/* Latest scan summary */}
           {latestScan && (
             <div style={{ marginTop: '2rem', padding: '1rem 1.2rem', borderRadius: '10px', background: 'rgba(0,200,180,0.04)', border: '1px solid rgba(0,200,180,0.12)', fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-3)' }}>
               ⚠ This timeline is for personal reference only. All AI results must be verified by a qualified medical professional. If you notice worsening trends, consult your doctor immediately.
