@@ -11,22 +11,27 @@ const CLS_LABEL = {
   glioma: 'Glioma', meningioma: 'Meningioma', notumor: 'No Tumor', pituitary: 'Pituitary'
 }
 
-function ScanSlot({ index, file, preview, result, loading, onFile }) {
+function ScanSlot({ index, file, preview, result, loading, onFile, isDicom }) {
   const accent = result ? (CLASS_COLORS[result.prediction] || '#888') : 'var(--teal)'
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem', minWidth: 0 }}>
       <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.58rem', letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--text-3)' }}>
         Scan {index}
       </div>
 
       {/* Upload */}
-      <label style={{  border: `1px dashed ${preview ? accent : 'rgba(0,200,180,0.25)'}`, borderRadius: '12px', padding: '1.5rem', textAlign: 'center', cursor: 'pointer', background: 'rgba(0,200,180,0.02)', minHeight: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <input type="file" accept=".jpg,.jpeg,.png" onChange={onFile} style={{ display: 'none' }} />
+      <label style={{ border: `1px dashed ${file ? accent : 'rgba(0,200,180,0.25)'}`, borderRadius: '12px', padding: '1.5rem', textAlign: 'center', cursor: 'pointer', background: 'rgba(0,200,180,0.02)', minHeight: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <input type="file" accept=".dcm" onChange={onFile} style={{ display: 'none' }} />
         {preview
           ? <img src={preview} alt={`Scan ${index}`} style={{ maxHeight: 200, borderRadius: 8, maxWidth: '100%' }} />
+          : isDicom
+          ? <div>
+              <div style={{ fontSize: '2rem', marginBottom: '0.6rem' }}>🏥</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--teal)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>DICOM loaded — ready</div>
+            </div>
           : <div>
-              <div style={{ fontSize: '2rem', opacity: 0.3, marginBottom: '0.6rem' }}>🔬</div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--text-3)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>Upload MRI scan {index}</div>
+              <div style={{ fontSize: '2rem', opacity: 0.3, marginBottom: '0.6rem' }}>🏥</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--text-3)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>Upload DICOM (.dcm) {index}</div>
             </div>
         }
       </label>
@@ -60,7 +65,6 @@ function ScanSlot({ index, file, preview, result, loading, onFile }) {
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', fontWeight: 700, color: accent }}>{Math.round(result.confidence * 100)}%</span>
               </div>
 
-              {/* Probabilities */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', marginBottom: '0.8rem' }}>
                 {Object.entries(result.probabilities).map(([cls, prob]) => {
                   const c = CLASS_COLORS[cls]
@@ -75,11 +79,16 @@ function ScanSlot({ index, file, preview, result, loading, onFile }) {
                 })}
               </div>
 
-              {/* Grad-CAM */}
               {result.overlay_image && (
                 <div>
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.55rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '0.4rem' }}>Grad-CAM Overlay</div>
                   <img src={`data:image/png;base64,${result.overlay_image}`} alt="Grad-CAM" style={{ width: '100%', borderRadius: 6, border: '1px solid var(--border)' }} />
+                </div>
+              )}
+
+              {result.gradcam?.radiomics?.est_volume_cm3 != null && result.prediction !== 'notumor' && (
+                <div style={{ marginTop: '0.6rem', fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--text-3)' }}>
+                  Volume: <span style={{ color: accent }}>{result.gradcam.radiomics.est_volume_cm3} cm³</span>
                 </div>
               )}
             </>
@@ -98,6 +107,8 @@ export default function ScanComparison() {
   const [file2, setFile2]       = useState(null)
   const [preview1, setPreview1] = useState(null)
   const [preview2, setPreview2] = useState(null)
+  const [isDicom1, setIsDicom1] = useState(false)
+  const [isDicom2, setIsDicom2] = useState(false)
   const [result1, setResult1]   = useState(null)
   const [result2, setResult2]   = useState(null)
   const [loading1, setLoading1] = useState(false)
@@ -107,11 +118,15 @@ export default function ScanComparison() {
 
   function handleFile1(e) {
     const f = e.target.files[0]; if (!f) return
-    setFile1(f); setPreview1(URL.createObjectURL(f)); setResult1(null); setCompared(false)
+    setFile1(f); setResult1(null); setCompared(false)
+    if (f.name.toLowerCase().endsWith('.dcm')) { setPreview1(null); setIsDicom1(true) }
+    else { setPreview1(URL.createObjectURL(f)); setIsDicom1(false) }
   }
   function handleFile2(e) {
     const f = e.target.files[0]; if (!f) return
-    setFile2(f); setPreview2(URL.createObjectURL(f)); setResult2(null); setCompared(false)
+    setFile2(f); setResult2(null); setCompared(false)
+    if (f.name.toLowerCase().endsWith('.dcm')) { setPreview2(null); setIsDicom2(true) }
+    else { setPreview2(URL.createObjectURL(f)); setIsDicom2(false) }
   }
 
   async function runPredict(file, setLoading, setResult) {
@@ -143,15 +158,18 @@ export default function ScanComparison() {
     setCompared(true)
   }
 
-  // Comparison summary
   const showSummary = compared && result1 && result2 && result1.prediction !== 'invalid' && result2.prediction !== 'invalid'
   const sameResult  = result1?.prediction === result2?.prediction
   const conf1       = result1 ? Math.round(result1.confidence * 100) : 0
   const conf2       = result2 ? Math.round(result2.confidence * 100) : 0
   const confDiff    = Math.abs(conf1 - conf2)
 
+  const vol1 = result1?.gradcam?.radiomics?.est_volume_cm3
+  const vol2 = result2?.gradcam?.radiomics?.est_volume_cm3
+  const showVolDiff = showSummary && sameResult && vol1 != null && vol2 != null && result1.prediction !== 'notumor'
+
   return (
-    <div style={{ padding: 'calc(var(--nav-h) + 2.5rem) 2rem 4rem', maxWidth: 1000, margin: '0 auto' }}>
+    <div style={{ padding: 'calc(var(--nav-h) + 2.5rem) 2rem 4rem', maxWidth: 1100, margin: '0 auto' }}>
 
       {/* Header */}
       <div style={{ marginBottom: '2.5rem' }}>
@@ -162,28 +180,25 @@ export default function ScanComparison() {
           Compare <span style={{ color: 'var(--teal)' }}>MRI Scans</span>
         </h1>
         <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--text-3)', marginTop: '0.3rem' }}>
-          Upload two MRI scans to compare AI predictions side by side
+          Upload two DICOM MRI scans to compare AI predictions side by side
         </p>
       </div>
 
       {/* Scan slots */}
-      <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1.5rem' }}>
-        <ScanSlot index={1} file={file1} preview={preview1} result={result1} loading={loading1} onFile={handleFile1} />
+      <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+        <ScanSlot index={1} file={file1} preview={preview1} result={result1} loading={loading1} onFile={handleFile1} isDicom={isDicom1} />
 
-        {/* Divider */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', paddingTop: '2rem' }}>
           <div style={{ width: 1, flex: 1, background: 'rgba(255,255,255,0.06)' }} />
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--text-3)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '99px', padding: '0.3rem 0.6rem' }}>VS</div>
           <div style={{ width: 1, flex: 1, background: 'rgba(255,255,255,0.06)' }} />
         </div>
 
-        <ScanSlot index={2} file={file2} preview={preview2} result={result2} loading={loading2} onFile={handleFile2} />
+        <ScanSlot index={2} file={file2} preview={preview2} result={result2} loading={loading2} onFile={handleFile2} isDicom={isDicom2} />
       </div>
 
-      {/* Error */}
       {error && <div style={{ padding: '0.8rem 1rem', borderRadius: '10px', background: 'rgba(255,75,75,0.08)', border: '1px solid rgba(255,75,75,0.2)', fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: '#FF4B4B', marginBottom: '1rem' }}>⚠ {error}</div>}
 
-      {/* Compare button */}
       <button
         onClick={runComparison}
         disabled={!file1 || !file2 || loading1 || loading2}
@@ -199,8 +214,7 @@ export default function ScanComparison() {
             📊 <span style={{ color: '#7B82F5' }}>Comparison Summary</span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
-            {/* Diagnosis match */}
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${showVolDiff ? 4 : 3},1fr)`, gap: '1rem' }}>
             <div style={{ background: sameResult ? 'rgba(255,107,107,0.08)' : 'rgba(12,242,200,0.08)', border: `1px solid ${sameResult ? 'rgba(255,107,107,0.2)' : 'rgba(12,242,200,0.2)'}`, borderRadius: '10px', padding: '1rem', textAlign: 'center' }}>
               <div style={{ fontSize: '1.5rem', marginBottom: '0.4rem' }}>{sameResult ? '⚠️' : '✅'}</div>
               <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.85rem', fontWeight: 700, color: sameResult ? '#FF6B6B' : 'var(--teal)', marginBottom: '0.25rem' }}>
@@ -211,7 +225,6 @@ export default function ScanComparison() {
               </div>
             </div>
 
-            {/* Confidence comparison */}
             <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '10px', padding: '1rem', textAlign: 'center' }}>
               <div style={{ fontSize: '1.5rem', marginBottom: '0.4rem' }}>📈</div>
               <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-1)', marginBottom: '0.25rem' }}>
@@ -222,7 +235,6 @@ export default function ScanComparison() {
               </div>
             </div>
 
-            {/* Higher confidence */}
             <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '10px', padding: '1rem', textAlign: 'center' }}>
               <div style={{ fontSize: '1.5rem', marginBottom: '0.4rem' }}>🏆</div>
               <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.85rem', fontWeight: 700, color: 'var(--teal)', marginBottom: '0.25rem' }}>
@@ -232,9 +244,20 @@ export default function ScanComparison() {
                 {Math.max(conf1, conf2)}% vs {Math.min(conf1, conf2)}%
               </div>
             </div>
+
+            {showVolDiff && (
+              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '10px', padding: '1rem', textAlign: 'center' }}>
+                <div style={{ fontSize: '1.5rem', marginBottom: '0.4rem' }}>📐</div>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.85rem', fontWeight: 700, color: vol2 > vol1 ? '#FF5757' : '#0CF2C8', marginBottom: '0.25rem' }}>
+                  {vol2 > vol1 ? '+' : ''}{(vol2 - vol1).toFixed(2)} cm³
+                </div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--text-3)' }}>
+                  Volume: {vol1} → {vol2} cm³
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Side by side predictions */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
             {[result1, result2].map((r, i) => {
               const c = CLASS_COLORS[r.prediction] || '#888'
