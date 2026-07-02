@@ -3,7 +3,7 @@ import { useAuth } from '../App'
 
 const QUICK_STATS = [
   { value: '24h', label: 'Rapid review' },
-  { value: '98%', label: 'AI accuracy' },
+  { value: '95%', label: 'AI accuracy' },
   { value: '4', label: 'Tumor classes' },
   { value: '10k+', label: 'Scans reviewed' },
 ]

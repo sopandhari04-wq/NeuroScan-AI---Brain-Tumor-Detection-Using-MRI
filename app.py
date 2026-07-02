@@ -740,31 +740,62 @@ Welcome, **{st.session_state.user_name}**!
 
         def generate_pdf_report(predicted_cls, confidence, mode, username, user_name, scan_history, cam_analysis=None):
             buffer  = BytesIO()
-            doc     = SimpleDocTemplate(buffer, pagesize=letter, topMargin=40, bottomMargin=40, leftMargin=50, rightMargin=50)
+            doc     = SimpleDocTemplate(buffer, pagesize=letter, topMargin=36, bottomMargin=36, leftMargin=46, rightMargin=46)
             styles  = getSampleStyleSheet()
             teal    = colors.HexColor('#00C8B4')
+            navy    = colors.HexColor('#0F1F2C')
             elems   = []
-            title_s  = ParagraphStyle('t', parent=styles['Title'],  textColor=teal, fontSize=22, spaceAfter=4)
-            sub_s    = ParagraphStyle('s', parent=styles['Normal'], textColor=colors.HexColor('#5A7090'), fontSize=9)
-            body_s   = ParagraphStyle('b', parent=styles['Normal'], textColor=colors.HexColor('#2A3A4A'), fontSize=10, leading=16)
-            label_s  = ParagraphStyle('l', parent=styles['Normal'], textColor=teal, fontSize=8, fontName='Helvetica-Bold', spaceAfter=2)
-            section_s= ParagraphStyle('sec', parent=styles['Normal'], textColor=colors.HexColor('#007A6E'), fontSize=11, fontName='Helvetica-Bold', spaceBefore=12, spaceAfter=4)
+            title_s  = ParagraphStyle('t', parent=styles['Title'],  textColor=navy, fontSize=26, fontName='Helvetica-Bold', spaceAfter=6, leading=32)
+            sub_s    = ParagraphStyle('s', parent=styles['Normal'], textColor=colors.HexColor('#4D5F72'), fontSize=9.4, leading=14)
+            body_s   = ParagraphStyle('b', parent=styles['Normal'], textColor=colors.HexColor('#2D3C4E'), fontSize=10.4, leading=17)
+            label_s  = ParagraphStyle('l', parent=styles['Normal'], textColor=teal, fontSize=9, fontName='Helvetica-Bold', spaceAfter=4, leading=11)
+            section_s= ParagraphStyle('sec', parent=styles['Normal'], textColor=navy, fontSize=12.2, fontName='Helvetica-Bold', spaceBefore=16, spaceAfter=8, leading=15, backColor=colors.HexColor('#E6F8F2'))
+            summary_s = ParagraphStyle('sum', parent=styles['Normal'], textColor=navy, fontSize=10.2, fontName='Helvetica-Bold', spaceAfter=6, leading=13)
+            card_s   = ParagraphStyle('card', parent=styles['Normal'], textColor=colors.HexColor('#2F3F51'), fontSize=10.4, leading=15.5)
             ist      = timezone(timedelta(hours=5, minutes=30))
             now_ist  = datetime.now(ist).strftime("%Y-%m-%d %H:%M IST")
-            elems   += [Paragraph("NeuroScan AI", title_s), Paragraph("MRI Brain Tumor Analysis Report", sub_s), Spacer(1,16)]
+            elems   += [Paragraph("NeuroScan AI", title_s), Paragraph("MRI Brain Tumor Analysis Report", sub_s), Spacer(1,12)]
+            header_table = Table([[Paragraph("<b>AI-Driven MRI Tumor Review</b>", ParagraphStyle('hdr', parent=styles['Normal'], textColor=navy, fontSize=10.4, fontName='Helvetica-Bold')), Paragraph(f"Generated: {now_ist}<br/><font size=8 color='#6B7B8A'>Software Version: v2.5.0</font>", ParagraphStyle('hdr2', parent=styles['Normal'], textColor=colors.HexColor('#6B7B8A'), fontSize=8.2, alignment=2))]], colWidths=[280,200])
+            header_table.setStyle(TableStyle([
+                ('BACKGROUND',(0,0),(-1,-1),colors.HexColor('#F4FBF7')),
+                ('BOX',(0,0),(-1,-1),1,colors.HexColor('#A6DBC9')),
+                ('INNERGRID',(0,0),(-1,-1),0.5,colors.HexColor('#D6EAE2')),
+                ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+                ('LEFTPADDING',(0,0),(-1,-1),12),('RIGHTPADDING',(0,0),(-1,-1),12),('TOPPADDING',(0,0),(-1,-1),10),('BOTTOMPADDING',(0,0),(-1,-1),10),
+            ]))
+            elems += [header_table, Spacer(1,14)]
             info_t   = Table([["Patient / User",user_name],["Username",f"@{username}"],["Analysis Mode",mode],["Generated On",now_ist]], colWidths=[140,340])
             info_t.setStyle(TableStyle([
-                ('BACKGROUND',(0,0),(0,-1),colors.HexColor('#EEF9F7')),('TEXTCOLOR',(0,0),(0,-1),colors.HexColor('#007A6E')),
-                ('TEXTCOLOR',(1,0),(1,-1),colors.HexColor('#2A3A4A')),('FONTNAME',(0,0),(0,-1),'Helvetica-Bold'),
-                ('FONTSIZE',(0,0),(-1,-1),9),('ROWBACKGROUNDS',(0,0),(-1,-1),[colors.HexColor('#F7FDFC'),colors.white]),
-                ('GRID',(0,0),(-1,-1),0.5,colors.HexColor('#D0EDE9')),('PADDING',(0,0),(-1,-1),8),
+                ('BACKGROUND',(0,0),(0,-1),colors.HexColor('#EFF8F2')),('TEXTCOLOR',(0,0),(0,-1),colors.HexColor('#007A6E')),
+                ('TEXTCOLOR',(1,0),(1,-1),colors.HexColor('#2E404E')),('FONTNAME',(0,0),(0,-1),'Helvetica-Bold'),
+                ('FONTSIZE',(0,0),(-1,-1),9),('ROWBACKGROUNDS',(0,0),(-1,-1),[colors.HexColor('#FFFFFF'),colors.HexColor('#F8FDF8')]),
+                ('GRID',(0,0),(-1,-1),0.4,colors.HexColor('#D9E8E1')),('PADDING',(0,0),(-1,-1),10),
             ]))
             elems += [info_t, Spacer(1,20)]
             cls_map = {'glioma':'Glioma','meningioma':'Meningioma','notumor':'No Tumor','pituitary':'Pituitary'}
             cls_hex = {'glioma':'#FF6B6B','meningioma':'#FFB347','notumor':'#00C8B4','pituitary':'#7B8CDE'}
-            res_s   = ParagraphStyle('r', parent=styles['Normal'], textColor=colors.HexColor(cls_hex.get(predicted_cls,'#00C8B4')), fontSize=18, fontName='Helvetica-Bold', spaceAfter=4)
-            elems  += [Paragraph("Prediction Result", label_s), Paragraph(cls_map.get(predicted_cls,predicted_cls), res_s),
-                       Paragraph(f"Confidence Score: <b>{int(confidence*100)}%</b>", body_s), Spacer(1,12)]
+            summary_t = Table([
+                [Paragraph('<b>Key finding</b>', ParagraphStyle('skey', parent=styles['Normal'], fontSize=9.2, textColor=navy)), Paragraph(f'{cls_map.get(predicted_cls,predicted_cls)} detected', ParagraphStyle('sval', parent=styles['Normal'], fontSize=9.2, textColor=colors.HexColor('#2D3C4E')))],
+                [Paragraph('<b>Urgency</b>', ParagraphStyle('skey', parent=styles['Normal'], fontSize=9.2, textColor=teal)), Paragraph(info['urgency'], ParagraphStyle('sval', parent=styles['Normal'], fontSize=9.2, textColor=colors.HexColor('#2D3C4E')))],
+                [Paragraph('<b>Confidence</b>', ParagraphStyle('skey', parent=styles['Normal'], fontSize=9.2, textColor=teal)), Paragraph(f'{int(confidence*100)}%', ParagraphStyle('sval', parent=styles['Normal'], fontSize=9.2, textColor=colors.HexColor('#2D3C4E')))],
+            ], colWidths=[140,340])
+            summary_t.setStyle(TableStyle([
+                ('BACKGROUND',(0,0),(-1,-1),colors.HexColor('#F6FCFB')),
+                ('BOX',(0,0),(-1,-1),0.8,colors.HexColor('#C5E6DF')),
+                ('INNERGRID',(0,0),(-1,-1),0.4,colors.HexColor('#D6EAE5')),
+                ('LEFTPADDING',(0,0),(-1,-1),10),('RIGHTPADDING',(0,0),(-1,-1),10),('TOPPADDING',(0,0),(-1,-1),8),('BOTTOMPADDING',(0,0),(-1,-1),8),
+            ]))
+            elems += [Paragraph('Executive summary', summary_s), summary_t, Spacer(1,14)]
+            res_s   = ParagraphStyle('r', parent=styles['Normal'], textColor=colors.HexColor(cls_hex.get(predicted_cls,'#00C8B4')), fontSize=18, fontName='Helvetica-Bold', spaceAfter=4, leading=22)
+            score_box = Table([[Paragraph(f"<b>{cls_map.get(predicted_cls,predicted_cls)}</b>", ParagraphStyle('score_title', fontSize=16, fontName='Helvetica-Bold', textColor=colors.HexColor(cls_hex.get(predicted_cls,'#00C8B4')))), Paragraph(ParagraphStyle('score_num', parent=styles['Normal'], textColor=navy, fontSize=14, leading=18), f"Confidence: <b>{int(confidence*100)}%</b>")]], colWidths=[210,270])
+            score_box.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F5FBF9')),
+                ('BOX', (0,0), (-1,-1), 1, colors.HexColor(cls_hex.get(predicted_cls,'#00C8B4'))),
+                ('INNERGRID', (0,0), (-1,-1), 0.45, colors.HexColor('#D8ECE7')),
+                ('LEFTPADDING', (0,0), (-1,-1), 12),('RIGHTPADDING', (0,0), (-1,-1), 12),('TOPPADDING', (0,0), (-1,-1), 11),('BOTTOMPADDING', (0,0), (-1,-1), 11),
+                ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ]))
+            elems  += [Paragraph("Prediction Result", label_s), score_box, Spacer(1,10)]
             info = TUMOR_DB[predicted_cls]
             elems += [Paragraph("AI Radiology Report", section_s),
                       Paragraph(f"<b>Diagnosis:</b> {info['full_name']}", body_s),
@@ -787,7 +818,7 @@ Welcome, **{st.session_state.user_name}**!
                 for title, desc in info["treatments"]:
                     elems += [Paragraph(f"<b>{title}</b>", body_s), Paragraph(desc, body_s), Spacer(1,4)]
                 elems.append(Spacer(1,8))
-            disc_s = ParagraphStyle('d', parent=styles['Normal'], textColor=colors.HexColor('#888888'), fontSize=8, backColor=colors.HexColor('#F5F5F5'), borderPad=8, leading=13)
+            disc_s = ParagraphStyle('d', parent=styles['Normal'], textColor=colors.HexColor('#6A7884'), fontSize=8.5, backColor=colors.HexColor('#F2F7F9'), borderPadding=8, leading=13)
             elems += [Paragraph("⚠ DISCLAIMER: This AI-generated result is for educational and research purposes only. Not intended as a clinical diagnosis. Please consult a qualified medical professional.", disc_s), Spacer(1,20)]
             if scan_history:
                 elems.append(Paragraph("Scan History", label_s))

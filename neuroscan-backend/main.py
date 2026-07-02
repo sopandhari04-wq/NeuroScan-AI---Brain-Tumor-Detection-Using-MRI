@@ -925,13 +925,13 @@ def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_hist
     navy    = colors.HexColor('#0B1420')
     elems   = []
 
-    title_s    = ParagraphStyle('t', parent=styles['Title'], textColor=navy, fontSize=18, fontName='Helvetica-Bold', spaceAfter=2, leading=20)
-    sub_s      = ParagraphStyle('s', parent=styles['Normal'], textColor=colors.HexColor('#5A7090'), fontSize=8.5)
-    meta_s     = ParagraphStyle('m', parent=styles['Normal'], textColor=colors.HexColor('#7A8A9A'), fontSize=7.5, spaceAfter=10)
-    body_s     = ParagraphStyle('b', parent=styles['Normal'], textColor=colors.HexColor('#2A3A4A'), fontSize=9.3, leading=14.5)
-    label_s    = ParagraphStyle('l', parent=styles['Normal'], textColor=teal, fontSize=8, fontName='Helvetica-Bold', spaceAfter=2)
-    section_s  = ParagraphStyle('sec', parent=styles['Normal'], textColor=navy, fontSize=11.5, fontName='Helvetica-Bold', spaceBefore=14, spaceAfter=6, borderColor=teal)
-    note_s     = ParagraphStyle('note', parent=styles['Normal'], textColor=colors.HexColor('#8A6D00'), fontSize=7.8, leading=12, backColor=colors.HexColor('#FFF9E6'))
+    title_s    = ParagraphStyle('t', parent=styles['Title'], textColor=navy, fontSize=20, fontName='Helvetica-Bold', spaceAfter=4, leading=24)
+    sub_s      = ParagraphStyle('s', parent=styles['Normal'], textColor=colors.HexColor('#4F667C'), fontSize=8.6, leading=12)
+    meta_s     = ParagraphStyle('m', parent=styles['Normal'], textColor=colors.HexColor('#7A8B9C'), fontSize=7.6, spaceAfter=10)
+    body_s     = ParagraphStyle('b', parent=styles['Normal'], textColor=colors.HexColor('#2F414F'), fontSize=9.4, leading=15)
+    label_s    = ParagraphStyle('l', parent=styles['Normal'], textColor=teal, fontSize=8.2, fontName='Helvetica-Bold', spaceAfter=3)
+    section_s  = ParagraphStyle('sec', parent=styles['Normal'], textColor=navy, fontSize=12, fontName='Helvetica-Bold', spaceBefore=16, spaceAfter=8, backColor=colors.HexColor('#E8FAF4'))
+    note_s     = ParagraphStyle('note', parent=styles['Normal'], textColor=colors.HexColor('#7A5F00'), fontSize=7.8, leading=11.5, backColor=colors.HexColor('#FFF9E7'))
 
     ist       = timezone(timedelta(hours=5, minutes=30))
     now_dt    = datetime.now(ist)
@@ -948,19 +948,28 @@ def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_hist
     # ── Header ──
     header_t = Table([[
         Paragraph("NEUROSCAN AI", title_s),
-        Paragraph(f"Report Generated: {now_ist}<br/>Software Version: v2.5.0", sub_s),
+        Paragraph(f"Report Generated: {now_ist}<br/><font size=8 color='#7A8A9A'>Software Version: v2.5.0</font>", sub_s),
     ]], colWidths=[300, 200])
     header_t.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F2FBF6')),
+        ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#A0D6CB')),
         ('VALIGN', (0,0), (-1,-1), 'TOP'),
         ('ALIGN', (1,0), (1,0), 'RIGHT'),
+        ('LEFTPADDING', (0,0), (-1,-1), 12),
+        ('RIGHTPADDING', (0,0), (-1,-1), 12),
+        ('TOPPADDING', (0,0), (-1,-1), 12),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 12),
     ]))
     elems += [
         header_t,
+        Spacer(1, 8),
         Paragraph("Radiological Companion Report &nbsp;·&nbsp; AI-Assisted MRI Brain Tumor Analysis", meta_s),
+        Spacer(1, 10),
+        Paragraph("Executive summary", summary_s),
     ]
-    # Divider line
-    elems.append(Table([['']], colWidths=[500], rowHeights=[1.2], style=TableStyle([('BACKGROUND', (0,0), (-1,-1), teal)])))
-    elems.append(Spacer(1, 12))
+    elems.append(Spacer(1, 8))
+    elems.append(Table([['']], colWidths=[500], rowHeights=[2], style=TableStyle([('BACKGROUND', (0,0), (-1,-1), accent)])))
+    elems.append(Spacer(1, 14))
 
     # ── 1. Patient & Session Metadata ──
     elems.append(Paragraph("1.  Patient &amp; Session Metadata", section_s))
@@ -971,22 +980,33 @@ def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_hist
     ]
     meta_t = Table(meta_rows, colWidths=[95, 150, 110, 145])
     meta_t.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (0,-1), colors.HexColor('#EEF9F7')),
-        ('BACKGROUND', (2,0), (2,-1), colors.HexColor('#EEF9F7')),
+        ('BACKGROUND', (0,0), (0,-1), colors.HexColor('#E8F7F2')),
+        ('BACKGROUND', (2,0), (2,-1), colors.HexColor('#E8F7F2')),
         ('TEXTCOLOR',  (0,0), (0,-1), colors.HexColor('#007A6E')),
         ('TEXTCOLOR',  (2,0), (2,-1), colors.HexColor('#007A6E')),
-        ('TEXTCOLOR',  (1,0), (1,-1), colors.HexColor('#2A3A4A')),
-        ('TEXTCOLOR',  (3,0), (3,-1), colors.HexColor('#2A3A4A')),
+        ('TEXTCOLOR',  (1,0), (1,-1), colors.HexColor('#2D404E')),
+        ('TEXTCOLOR',  (3,0), (3,-1), colors.HexColor('#2D404E')),
         ('FONTNAME',   (0,0), (0,-1), 'Helvetica-Bold'),
         ('FONTNAME',   (2,0), (2,-1), 'Helvetica-Bold'),
-        ('FONTSIZE',   (0,0), (-1,-1), 8.3),
-        ('ROWBACKGROUNDS', (1,0), (1,-1), [colors.HexColor('#F7FDFC'), colors.white]),
-        ('ROWBACKGROUNDS', (3,0), (3,-1), [colors.HexColor('#F7FDFC'), colors.white]),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#D0EDE9')),
-        ('PADDING', (0,0), (-1,-1), 7),
+        ('FONTSIZE',   (0,0), (-1,-1), 8.2),
+        ('ROWBACKGROUNDS', (0,0), (-1,-1), [colors.HexColor('#FFFFFF'), colors.HexColor('#F9FFFC')]),
+        ('GRID', (0,0), (-1,-1), 0.45, colors.HexColor('#D5E6E0')),
+        ('PADDING', (0,0), (-1,-1), 8),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
     ]))
-    elems += [meta_t, Spacer(1, 4)]
+    elems += [meta_t, Spacer(1, 6)]
+    summary_t = Table([
+        [Paragraph('<b>Predicted class</b>', ParagraphStyle('skey', parent=styles['Normal'], fontSize=9.2, textColor=navy)), Paragraph(CLASS_DISPLAY.get(predicted_cls,predicted_cls), ParagraphStyle('sval', parent=styles['Normal'], fontSize=9.2, textColor=colors.HexColor('#2F414F')))],
+        [Paragraph('<b>Confidence</b>', ParagraphStyle('skey', parent=styles['Normal'], fontSize=9.2, textColor=teal)), Paragraph(f'{int(confidence*100)}%', ParagraphStyle('sval', parent=styles['Normal'], fontSize=9.2, textColor=colors.HexColor('#2F414F')))],
+        [Paragraph('<b>Urgency</b>', ParagraphStyle('skey', parent=styles['Normal'], fontSize=9.2, textColor=teal)), Paragraph(get_dynamic_urgency(predicted_cls, who_grade)[0], ParagraphStyle('sval', parent=styles['Normal'], fontSize=9.2, textColor=colors.HexColor('#2F414F')))],
+    ], colWidths=[140, 360])
+    summary_t.setStyle(TableStyle([
+        ('BACKGROUND',(0,0),(-1,-1),colors.HexColor('#F7FCFA')),
+        ('BOX',(0,0),(-1,-1),0.7,colors.HexColor('#C2E4D9')),
+        ('INNERGRID',(0,0),(-1,-1),0.4,colors.HexColor('#D8E8E2')),
+        ('LEFTPADDING',(0,0),(-1,-1),10),('RIGHTPADDING',(0,0),(-1,-1),10),('TOPPADDING',(0,0),(-1,-1),8),('BOTTOMPADDING',(0,0),(-1,-1),8),
+    ]))
+    elems += [summary_t, Spacer(1, 10)]
 
     # ── 2a. Primary AI Classification Result (raw model output) ──
     elems.append(Paragraph("2a.  Primary AI Classification Result (Image Model Output)", section_s))
@@ -1002,11 +1022,12 @@ def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_hist
     ]], colWidths=[170, 330])
     result_t.setStyle(TableStyle([
         ('VALIGN', (0,0), (-1,-1), 'TOP'),
-        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F7FAFC')),
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F5FBF6')),
         ('BOX', (0,0), (-1,-1), 1, accent),
-        ('PADDING', (0,0), (-1,-1), 10),
+        ('INNERGRID', (0,0), (-1,-1), 0.45, colors.HexColor('#D7EAE3')),
+        ('LEFTPADDING', (0,0), (-1,-1), 12),('RIGHTPADDING', (0,0), (-1,-1), 12),('TOPPADDING', (0,0), (-1,-1), 11),('BOTTOMPADDING', (0,0), (-1,-1), 11),
     ]))
-    elems += [result_t, Spacer(1, 8)]
+    elems += [result_t, Spacer(1, 10)]
 
     # AI Epistemic Uncertainty (Test-Time Augmentation)
     if uncertainty:
@@ -1248,7 +1269,7 @@ def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_hist
             elems += [Paragraph(f"<b>&bull; {t_title}:</b> {t_desc}", body_s), Spacer(1, 3)]
         elems.append(Spacer(1, 6))
 
-    disc_s = ParagraphStyle('d', parent=styles['Normal'], textColor=colors.HexColor('#888888'), fontSize=7.6, leading=12)
+    disc_s = ParagraphStyle('d', parent=styles['Normal'], textColor=colors.HexColor('#5F737F'), fontSize=8.3, leading=13.5, backColor=colors.HexColor('#F2F9F6'), borderPadding=8)
     elems += [
         Spacer(1, 6),
         Paragraph("DISCLAIMER: This is an AI-generated companion report for educational/research purposes only. It does not constitute a clinical diagnosis. All findings must be confirmed by a licensed radiologist and, where applicable, histopathological biopsy.", disc_s),
@@ -1364,7 +1385,8 @@ def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_hist
         Spacer(1, 10),
     ]
 
-    footer_s = ParagraphStyle('f', parent=styles['Normal'], textColor=colors.HexColor('#AAB8C2'), fontSize=7, alignment=1)
+    footer_s = ParagraphStyle('f', parent=styles['Normal'], textColor=colors.HexColor('#8A9BAA'), fontSize=7.2, alignment=1, leading=10)
+    elems.append(Spacer(1, 10))
     elems.append(Paragraph("NeuroScan AI · Research Prototype · Not for Clinical Use · Generated by automated pipeline", footer_s))
 
     doc.build(elems)
