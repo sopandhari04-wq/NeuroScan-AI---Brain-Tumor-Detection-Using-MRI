@@ -136,7 +136,7 @@ export default function About() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: '1rem' }}>
             <div>
               <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Email</div>
-              <a href="mailto:neuroscanai@gmail.com" style={{ color: '#2563EB', textDecoration: 'none', fontWeight: 600 }}>contact@neuroscan.com</a>
+              <a href="mailto:neuroscanai@gmail.com" style={{ color: '#2563EB', textDecoration: 'none', fontWeight: 600 }}>neuroscanaigmail.com</a>
             </div>
 
             <div>
