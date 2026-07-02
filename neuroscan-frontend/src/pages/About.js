@@ -151,7 +151,7 @@ export default function About() {
 
             <div>
               <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Support hours</div>
-              <div style={{ color: '#475569' }}>Mon–Fri, 09:00–17:00 (EST)</div>
+              <div style={{ color: '#475569' }}>Mon–Fri, 09:00–17:00 (IST)</div>
             </div>
           </div>
         </section>
