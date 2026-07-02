@@ -4,7 +4,7 @@ import { useAuth } from '../App'
 import { supabase } from '../lib/supabase'
 
 export default function Navbar() {
-  const { user } = useAuth()
+  const { user, role } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -13,9 +13,8 @@ export default function Navbar() {
     { to: '/features', label: 'Features' },
     { to: '/about', label: 'About' },
   ]
- const { role } = useAuth()
 
- const authLinks = user
+  const authLinks = user
     ? [
         role === 'admin' ? { to: '/admin', label: 'Dashboard' } :
         role === 'doctor' ? { to: '/dashboard', label: 'Dashboard' } :
@@ -41,17 +40,18 @@ export default function Navbar() {
   return (
     <nav style={{
       position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
-      height: 'var(--nav-h)',
-      background: 'rgba(6,8,16,0.88)',
-      backdropFilter: 'blur(16px)',
-      borderBottom: '1px solid var(--border)',
-      display: 'flex', alignItems: 'center',
-      padding: '0 2rem',
+      minHeight: 'var(--nav-h)',
+      background: 'rgba(255,255,255,0.96)',
+      backdropFilter: 'blur(24px)',
+      boxShadow: '0 22px 68px rgba(15,23,42,0.09)',
+      borderBottom: '1px solid rgba(15,23,42,0.06)',
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      gap: '1rem', padding: '0 1.5rem', flexWrap: 'wrap'
     }}>
       {/* Logo */}
       <Link to="/" style={{
         display: 'flex', alignItems: 'baseline', gap: '0.25rem',
-        textDecoration: 'none', marginRight: '2.5rem'
+        textDecoration: 'none'
       }}>
         <span style={{
           fontFamily: 'var(--font-serif)', fontStyle: 'italic',

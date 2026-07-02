@@ -3,17 +3,20 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg: #060810;
-  --surface: #0C0F1A;
-  --border: rgba(255,255,255,0.06);
-  --border2: rgba(255,255,255,0.10);
+  --bg: #F8FAFF;
+  --surface: #FFFFFF;
+  --surface-soft: rgba(255,255,255,0.92);
+  --border: rgba(15,23,42,0.08);
+  --border-strong: rgba(15,23,42,0.12);
   --teal: #0CF2C8;
+  --blue: #2563EB;
+  --blue-soft: rgba(37,99,235,0.08);
   --red: #FF5757;
   --amber: #FFAD3B;
   --indigo: #7B82F5;
-  --text: #E8EDF5;
-  --text-2: #8896AA;
-  --text-3: #3D4E60;
+  --text: #0F172A;
+  --text-2: #475569;
+  --text-3: #94A3B8;
   --font-sans: 'Space Grotesk', sans-serif;
   --font-serif: 'Instrument Serif', serif;
   --font-mono: 'JetBrains Mono', monospace;
@@ -23,7 +26,7 @@
 html { scroll-behavior: smooth; }
 
 body {
-  background: var(--bg);
+  background: linear-gradient(180deg, #F7FAFC 0%, #FFFFFF 52%);
   color: var(--text);
   font-family: var(--font-sans);
   min-height: 100vh;
@@ -34,19 +37,20 @@ body::before {
   content: '';
   position: fixed; inset: 0;
   background:
-    radial-gradient(ellipse 70% 55% at 5% 0%, rgba(12,242,200,0.07) 0%, transparent 60%),
-    radial-gradient(ellipse 50% 60% at 95% 100%, rgba(123,130,245,0.06) 0%, transparent 60%),
-    radial-gradient(ellipse 35% 35% at 50% 50%, rgba(12,242,200,0.025) 0%, transparent 65%);
+    radial-gradient(closest-side at 12% 8%, rgba(12,242,200,0.16) 0%, transparent 36%),
+    radial-gradient(closest-side at 88% 88%, rgba(59,130,246,0.12) 0%, transparent 42%),
+    radial-gradient(closest-side at 58% 28%, rgba(37,99,235,0.08) 0%, transparent 44%);
+  filter: blur(26px);
+  opacity: 0.55;
+  background-blend-mode: screen;
   pointer-events: none; z-index: 0;
 }
 
 body::after {
   content: '';
   position: fixed; inset: 0;
-  background-image:
-    linear-gradient(rgba(12,242,200,0.018) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(12,242,200,0.018) 1px, transparent 1px);
-  background-size: 44px 44px;
+  /* subtle grid disabled to keep page surfaces clean */
+  background-image: none;
   pointer-events: none; z-index: 0;
 }
 
@@ -75,11 +79,12 @@ a:hover { opacity: 0.8; }
 }
 
 .card {
-  background: rgba(11,14,24,0.80);
-  border: 1px solid var(--border);
-  border-radius: 14px;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 18px;
   position: relative;
   overflow: hidden;
+  box-shadow: 0 24px 40px rgba(15,23,42,0.06);
 }
 
 .btn {
@@ -104,7 +109,7 @@ a:hover { opacity: 0.8; }
   background: transparent; color: var(--text-2);
   border: 1px solid var(--border2);
 }
-.btn-ghost:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+.btn-ghost:hover { background: rgba(15,23,42,0.04); color: var(--text); }
 
 .input {
   width: 100%;

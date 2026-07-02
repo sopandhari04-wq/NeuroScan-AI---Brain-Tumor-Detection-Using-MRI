@@ -59,7 +59,7 @@ export default function AnnotationsViewer() {
         {['all', 'glioma', 'meningioma', 'notumor', 'pituitary'].map(f => {
           const c = f === 'all' ? 'var(--teal)' : CLS_COLORS[f]
           return (
-            <button key={f} onClick={() => setFilter(f)} style={{ background: filter === f ? `${c}18` : 'transparent', border: `1px solid ${filter === f ? c : 'rgba(255,255,255,0.08)'}`, borderRadius: '99px', color: filter === f ? c : 'var(--text-3)', fontFamily: 'var(--font-mono)', fontSize: '0.6rem', padding: '0.3rem 0.75rem', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+            <button key={f} onClick={() => setFilter(f)} style={{ background: filter === f ? `${c}18` : 'transparent', border: `1px solid ${filter === f ? c : 'rgba(15,23,42,0.12)'}`, borderRadius: '99px', color: filter === f ? c : 'var(--text-3)', fontFamily: 'var(--font-mono)', fontSize: '0.6rem', padding: '0.3rem 0.75rem', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
               {f === 'all' ? 'All' : CLS_LABEL[f]}
             </button>
           )
@@ -84,7 +84,7 @@ export default function AnnotationsViewer() {
                 style={{ border: `1px solid ${c}22`, borderRadius: '12px', background: `${c}04`, overflow: 'hidden', cursor: 'pointer', transition: 'border-color 0.2s' }}
               >
                 {/* Annotation image */}
-                <div style={{ position: 'relative', background: '#000' }}>
+                <div style={{ position: 'relative', background: '#F8FAFF' }}>
                   <img
                     src={a.annotation_data}
                     alt="Annotation"
@@ -121,11 +121,11 @@ export default function AnnotationsViewer() {
       {selected && (
         <div
           onClick={() => setSelected(null)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.22)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}
         >
           <div
             onClick={e => e.stopPropagation()}
-            style={{ background: 'rgba(11,14,24,0.98)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', maxWidth: 700, width: '100%', overflow: 'hidden' }}
+            style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '16px', maxWidth: 700, width: '100%', overflow: 'hidden', boxShadow: '0 32px 70px rgba(15,23,42,0.12)' }}
           >
             <img src={selected.annotation_data} alt="Annotation" style={{ width: '100%' }} />
             <div style={{ padding: '1.2rem 1.5rem' }}>
@@ -137,11 +137,11 @@ export default function AnnotationsViewer() {
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--text-3)' }}>@{selected.doctor_username}</span>
               </div>
               {selected.notes && (
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--text-2)', lineHeight: 1.7, padding: '0.8rem', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--text-2)', lineHeight: 1.7, padding: '0.8rem', background: '#F8FAFF', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
                   💬 {selected.notes}
                 </div>
               )}
-              <button onClick={() => setSelected(null)} style={{ marginTop: '1rem', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'var(--text-3)', fontFamily: 'var(--font-mono)', fontSize: '0.65rem', padding: '0.5rem 1.2rem', cursor: 'pointer' }}>
+              <button onClick={() => setSelected(null)} style={{ marginTop: '1rem', background: '#F8FAFF', border: '1px solid #E2E8F0', borderRadius: '8px', color: 'var(--text-2)', fontFamily: 'var(--font-mono)', fontSize: '0.65rem', padding: '0.5rem 1.2rem', cursor: 'pointer' }}>
                 Close
               </button>
             </div>
