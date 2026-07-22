@@ -175,3 +175,211 @@ a:hover { opacity: 0.8; }
   }
 }
 
+
+/* -- Mobile Responsiveness -- */
+@media (max-width: 768px) {
+
+  /* Wider padding on small screens */
+  div[style*='padding: calc(var(--nav-h)'] {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
+  /* Stack hero split layout */
+  .login-showcase { display: none !important; }
+  .login-mobile-header { display: block !important; }
+
+  /* Stat card grids - 2 columns on mobile */
+  div[style*='repeat(4,1fr)'] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  div[style*='repeat(3,1fr)'] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  div[style*='repeat(6,1fr)'] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Scanner comparison - stack vertically */
+  div[style*='flex: 1 1 45%'] {
+    flex: 1 1 100% !important;
+  }
+  div[style*='flex: 1 1 55%'] {
+    flex: 1 1 100% !important;
+  }
+
+  /* Home hero - stack */
+  div[style*='flex: 1 1 480px'] {
+    flex: 1 1 100% !important;
+  }
+  div[style*='flex: 1 1 380px'] {
+    display: none !important;
+  }
+
+  /* Scan comparison slots */
+  div[style*='flex: 1'][style*='minWidth: 0'] {
+    flex: 1 1 100% !important;
+  }
+
+  /* Pipeline steps - 2 col on mobile */
+  div[style*='minmax(180px,1fr)'] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Features grid single column */
+  div[style*='minmax(220px,1fr)'] {
+    grid-template-columns: 1fr !important;
+  }
+  div[style*='minmax(240px,1fr)'] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Charts min height */
+  .recharts-wrapper {
+    min-height: 160px !important;
+  }
+
+  /* Annotation tools wrap */
+  div[style*='annotationTool'] {
+    flex-wrap: wrap !important;
+  }
+
+  /* Typography scale down */
+  h1 { font-size: clamp(1.6rem, 7vw, 2.4rem) !important; }
+  h2 { font-size: clamp(1.3rem, 5vw, 2rem) !important; }
+
+  /* Table overflow scroll */
+  table { display: block; overflow-x: auto; }
+
+  /* Quick links grid on dashboard */
+  div[style*='minmax(150px,1fr)'] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Hide VS divider in scan comparison */
+  div[style*='"VS"'] {
+    display: none !important;
+  }
+
+  /* Scan history rows wrap */
+  div[style*='padding: 0.7rem 1.1rem'] {
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  div[style*='repeat(4,1fr)'] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  div[style*='repeat(2,1fr)'] {
+    grid-template-columns: 1fr !important;
+  }
+  div[style*='minmax(180px,1fr)'] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* -- Mobile Responsiveness -- */
+@media (max-width: 768px) {
+
+  /* Wider padding on small screens */
+  div[style*='padding: calc(var(--nav-h)'] {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
+  /* Stack hero split layout */
+  .login-showcase { display: none !important; }
+  .login-mobile-header { display: block !important; }
+
+  /* Stat card grids - 2 columns on mobile */
+  div[style*='repeat(4,1fr)'] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  div[style*='repeat(3,1fr)'] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  div[style*='repeat(6,1fr)'] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Scanner comparison - stack vertically */
+  div[style*='flex: 1 1 45%'] {
+    flex: 1 1 100% !important;
+  }
+  div[style*='flex: 1 1 55%'] {
+    flex: 1 1 100% !important;
+  }
+
+  /* Home hero - stack */
+  div[style*='flex: 1 1 480px'] {
+    flex: 1 1 100% !important;
+  }
+  div[style*='flex: 1 1 380px'] {
+    display: none !important;
+  }
+
+  /* Scan comparison slots */
+  div[style*='flex: 1'][style*='minWidth: 0'] {
+    flex: 1 1 100% !important;
+  }
+
+  /* Pipeline steps - 2 col on mobile */
+  div[style*='minmax(180px,1fr)'] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Features grid single column */
+  div[style*='minmax(220px,1fr)'] {
+    grid-template-columns: 1fr !important;
+  }
+  div[style*='minmax(240px,1fr)'] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Charts min height */
+  .recharts-wrapper {
+    min-height: 160px !important;
+  }
+
+  /* Annotation tools wrap */
+  div[style*='annotationTool'] {
+    flex-wrap: wrap !important;
+  }
+
+  /* Typography scale down */
+  h1 { font-size: clamp(1.6rem, 7vw, 2.4rem) !important; }
+  h2 { font-size: clamp(1.3rem, 5vw, 2rem) !important; }
+
+  /* Table overflow scroll */
+  table { display: block; overflow-x: auto; }
+
+  /* Quick links grid on dashboard */
+  div[style*='minmax(150px,1fr)'] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Hide VS divider in scan comparison */
+  div[style*='"VS"'] {
+    display: none !important;
+  }
+
+  /* Scan history rows wrap */
+  div[style*='padding: 0.7rem 1.1rem'] {
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  div[style*='repeat(4,1fr)'] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  div[style*='repeat(2,1fr)'] {
+    grid-template-columns: 1fr !important;
+  }
+  div[style*='minmax(180px,1fr)'] {
+    grid-template-columns: 1fr !important;
+  }
+}
