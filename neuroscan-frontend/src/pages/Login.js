@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
+import { hasSupabaseConfig, supabase } from '../lib/supabase'
 import { useAuth } from '../App'
 
 const SHOWCASE_FEATURES = [
@@ -46,6 +46,11 @@ export default function Login() {
 
   async function handleSubmit(e) {
     e.preventDefault()
+    if (!hasSupabaseConfig || !supabase) {
+      setError('Authentication is not configured yet. Add the Supabase URL and anon key in Vercel, then redeploy.')
+      return
+    }
+
     setError(''); setSuccess(''); setLoading(true)
     try {
       if (mode === 'signin') {
