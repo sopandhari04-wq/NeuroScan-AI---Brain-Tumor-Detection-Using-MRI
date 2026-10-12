@@ -27,6 +27,9 @@ st.markdown("<style>iframe[src*='neuroscan'] { pointer-events: auto; }</style>",
 # ══════════════════════════════════════════════════════════════════════════════
 @st.cache_resource
 def get_supabase() -> Client:
+    if "SUPABASE_URL" not in st.secrets or "SUPABASE_KEY" not in st.secrets:
+        st.warning("Supabase is not configured. Add SUPABASE_URL and SUPABASE_KEY to .streamlit/secrets.toml to enable database features.")
+        return None
     url = st.secrets["SUPABASE_URL"]
     key = st.secrets["SUPABASE_KEY"]
     return create_client(url, key)
@@ -41,6 +44,8 @@ def load_users():
     """Load all users from Supabase."""
     try:
         sb = get_supabase()
+        if sb is None:
+            return {}
         res = sb.table("users").select("*").execute()
         users = {}
         for u in res.data:
@@ -59,7 +64,9 @@ def load_users():
 def get_user_scans(username):
     """Get scan history for a specific user."""
     try:
-        sb  = get_supabase()
+        sb = get_supabase()
+        if sb is None:
+            return []
         res = sb.table("scans").select("*").eq("username", username).order("date", desc=True).execute()
         scans = []
         ist   = timezone(timedelta(hours=5, minutes=30))
@@ -85,6 +92,8 @@ def add_user(username, password, role, name):
     """Add a new user to Supabase."""
     try:
         sb = get_supabase()
+        if sb is None:
+            return False
         sb.table("users").insert({
             "username": username,
             "password": password,
@@ -100,6 +109,8 @@ def add_scan_record(username, predicted_cls, confidence, mode):
     """Save scan record to Supabase."""
     try:
         sb = get_supabase()
+        if sb is None:
+            return
         sb.table("scans").insert({
             "username":   username,
             "prediction": predicted_cls,
@@ -112,7 +123,9 @@ def add_scan_record(username, predicted_cls, confidence, mode):
 def get_all_scans():
     """Get all scans from all users (admin only)."""
     try:
-        sb  = get_supabase()
+        sb = get_supabase()
+        if sb is None:
+            return []
         res = sb.table("scans").select("*, users(name)").order("date", desc=True).limit(50).execute()
         ist = timezone(timedelta(hours=5, minutes=30))
         scans = []
@@ -138,7 +151,9 @@ def get_all_scans():
 def get_dashboard_stats():
     """Get dashboard stats from Supabase."""
     try:
-        sb         = get_supabase()
+        sb = get_supabase()
+        if sb is None:
+            return 0, 0, 0, 0
         users_res  = sb.table("users").select("username, role").execute()
         scans_res  = sb.table("scans").select("prediction").execute()
         total_users  = len([u for u in users_res.data if u["role"] == "user"])

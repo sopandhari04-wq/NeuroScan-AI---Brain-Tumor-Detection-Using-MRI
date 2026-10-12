@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { useAuth } from '../App'
-import { supabase } from '../lib/supabase'
+import { supabase, hasSupabaseConfig } from '../lib/supabase'
 
 export default function Navbar() {
   const { user } = useAuth()
@@ -18,6 +18,7 @@ export default function Navbar() {
     : []
 
   async function handleSignOut() {
+    if (!hasSupabaseConfig || !supabase) return
     await supabase.auth.signOut()
     navigate('/')
   }

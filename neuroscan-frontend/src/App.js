@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useState, useEffect, createContext, useContext } from 'react'
-import { supabase } from './lib/supabase'
+import { supabase, hasSupabaseConfig } from './lib/supabase'
 import Navbar from './components/Navbar'
 import Home from './pages/Home'
 import About from './pages/About'
@@ -48,6 +48,11 @@ export default function App() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (!hasSupabaseConfig || !supabase) {
+      setLoading(false)
+      return undefined
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
       setLoading(false)

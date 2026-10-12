@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
+import { supabase, hasSupabaseConfig } from '../lib/supabase'
 import { useAuth } from '../App'
 
 export default function Login() {
@@ -19,6 +19,13 @@ export default function Login() {
   async function handleSubmit(e) {
     e.preventDefault()
     setError(''); setSuccess(''); setLoading(true)
+
+    if (!hasSupabaseConfig || !supabase) {
+      setError('Supabase is not configured. Add REACT_APP_SUPABASE_URL and REACT_APP_SUPABASE_ANON_KEY to your .env.local file.')
+      setLoading(false)
+      return
+    }
+
     try {
       if (mode === 'signin') {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
