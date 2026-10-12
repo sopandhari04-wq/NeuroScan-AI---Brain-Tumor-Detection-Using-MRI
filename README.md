@@ -60,7 +60,7 @@ BrainTumorDetction/
 ├── train.py                       # Model training script
 ├── predict.py                     # Prediction helper / placeholder script
 ├── requirements.txt               # Python dependencies
-├── .nvmrc                         # Node 20 requirement
+├── .nvmrc                         # Node 24 requirement
 ├── .streamlit/
 │   └── secrets.toml.example       # Streamlit Supabase config template
 ├── neuroscan-backend/
@@ -94,7 +94,7 @@ BrainTumorDetction/
 ## Prerequisites
 
 - Python 3.10+
-- Node.js 20.x
+- Node.js 24.x
 - npm
 - Git
 - Supabase project
