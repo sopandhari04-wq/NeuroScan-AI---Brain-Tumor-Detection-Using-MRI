@@ -1,224 +1,167 @@
 const TECH_STACK = [
-  { cat: 'AI / ML', items: ['TensorFlow Lite', 'MobileNetV2', 'Grad-CAM', 'NumPy', 'OpenCV'] },
-  { cat: 'Backend', items: ['Python 3.11', 'Streamlit', 'ReportLab', 'PIL / Pillow'] },
-  { cat: 'Frontend', items: ['React 18', 'React Router v6', 'Recharts'] },
-  { cat: 'Infrastructure', items: ['Supabase (Auth + DB)', 'Vercel (Frontend)', 'Streamlit Cloud (AI)'] },
+  { cat: 'AI / ML', color: '#FF5757', items: ['TensorFlow Lite', 'MobileNetV2', 'Grad-CAM', 'MONAI SegResNet', 'NumPy', 'OpenCV', 'SciPy'] },
+  { cat: 'Backend', color: '#FFAD3B', items: ['Python 3.11', 'FastAPI', 'PyDICOM', 'ReportLab', 'PIL / Pillow', 'Groq API (LLM)'] },
+  { cat: 'Frontend', color: '#0CF2C8', items: ['React 18', 'React Router v6', 'Three.js', 'Recharts', 'Supabase JS'] },
+  { cat: 'Infrastructure', color: '#7B82F5', items: ['Supabase (Auth + DB)', 'Vercel (Frontend)', 'Render (Backend API)'] },
 ]
 
 const TIMELINE = [
-  { phase: '01', title: 'Data & Training', desc: 'CNN model trained on 3,000+ labelled MRI scans across 4 tumor classes. Converted to TFLite for fast inference.' },
-  { phase: '02', title: 'Explainability', desc: 'Grad-CAM implemented on MobileNetV2 feature layers to generate class-discriminative heatmaps per prediction.' },
-  { phase: '03', title: 'Clinical Layer', desc: 'Knowledge base built with WHO classifications, treatment protocols, and prognosis data for each tumor type.' },
-  { phase: '04', title: 'Multi-Modal', desc: 'Four-channel fusion pipeline combining T1, T1ce, T2, FLAIR into a weighted RGB representation for inference.' },
-  { phase: '05', title: 'Web Platform', desc: 'Streamlit backend + React frontend with Supabase auth, scan history, admin dashboard, and PDF export.' },
+  { phase: '01', color: '#7B82F5', title: 'Data & Training', desc: 'CNN model trained on 3,000+ labelled MRI scans across 4 tumor classes, converted to TFLite for fast web inference.' },
+  { phase: '02', color: '#0CF2C8', title: 'Explainable AI', desc: 'Grad-CAM heatmaps and segmentation-driven radiomics provide transparency for every tumor prediction.' },
+  { phase: '03', color: '#FFAD3B', title: 'Clinical intelligence', desc: 'Rule-based CDSS combines tumor features with molecular context for more informed review.' },
+  { phase: '04', color: '#FF5757', title: '3D visualization', desc: 'Interactive brain rendering with volumetric tumor overlays and longitudinal trend comparisons.' },
+]
+
+const KEY_METRICS = [
+  { val: '4', label: 'Tumor classes', sub: 'Glioma · Meningioma · Pituitary · No Tumor', color: '#FF5757' },
+  { val: '95%+', label: 'Classification accuracy', sub: 'Hold-out validation', color: '#0CF2C8' },
+  { val: '0.94', label: 'Dice score', sub: 'MONAI segmentation validation', color: '#FFAD3B' },
+  { val: '25+', label: 'Clinical features', sub: 'AI, reports, workflow, analytics', color: '#7B82F5' },
 ]
 
 export default function About() {
   return (
-    <div style={{ paddingTop: 'var(--nav-h)' }}>
+    <div style={{ paddingTop: 'var(--nav-h)', background: 'transparent', color: '#0F172A', fontFamily: 'Inter, system-ui, sans-serif' }}>
+      <main style={{ maxWidth: 1120, margin: '0 auto', padding: '4rem 2rem 4rem' }}>
+        <section style={{ textAlign: 'center', padding: '4rem 0 2rem' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.8rem', marginBottom: '1rem' }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#2563EB' }} />
+            <span style={{ textTransform: 'uppercase', letterSpacing: '0.3em', color: '#2563EB', fontFamily: 'var(--font-mono)', fontSize: '0.82rem' }}>
+              About NeuroScan
+            </span>
+          </div>
+          <h1 style={{ fontSize: 'clamp(2.8rem, 4vw, 3.8rem)', lineHeight: 1.04, maxWidth: 760, margin: '0 auto 1rem', fontWeight: 800 }}>
+            AI-powered MRI tumor review with explainability, volumetrics, and care-ready reporting.
+          </h1>
+          <p style={{ fontFamily: 'var(--font-mono)', color: '#475569', fontSize: '1rem', lineHeight: 1.85, maxWidth: 720, margin: '0 auto' }}>
+            NeuroScan helps research and clinical teams review MRI scans with confidence by combining secure intake, tumor classification, Grad-CAM clarity, and longitudinal analytics.
+          </p>
+        </section>
 
-      {/* Header */}
-      <section style={{
-        padding: '4rem 2rem 3rem', textAlign: 'center',
-        maxWidth: 640, margin: '0 auto'
-      }}>
-        <p className="eyebrow" style={{ marginBottom: '0.75rem' }}>About the project</p>
-        <h1 style={{
-          fontSize: 'clamp(2rem, 5vw, 3rem)',
-          letterSpacing: '-0.03em', marginBottom: '1rem'
-        }}>
-          What is{' '}
-          <span style={{
-            color: 'var(--teal)', fontFamily: 'var(--font-serif)',
-            fontStyle: 'italic', fontWeight: 300
-          }}>NeuroScan AI?</span>
-        </h1>
-        <p style={{
-          fontFamily: 'var(--font-mono)', fontSize: '0.76rem',
-          color: 'var(--text-3)', lineHeight: 1.9
-        }}>
-          NeuroScan AI is a deep learning research prototype for MRI-based brain tumor
-          classification. It combines a CNN inference engine, Grad-CAM visual explainability,
-          structured clinical reporting, and multi-modal MRI fusion into a single web platform.
-        </p>
-      </section>
-
-      <div style={{
-        height: 1,
-        background: 'linear-gradient(90deg,transparent,rgba(12,242,200,0.12),transparent)',
-        margin: '0 2rem 4rem'
-      }} />
-
-      {/* Disclaimer */}
-      <section style={{ maxWidth: 900, margin: '0 auto', padding: '0 2rem 3rem' }}>
-        <div style={{
-          background: 'rgba(255,173,59,0.06)',
-          border: '1px solid rgba(255,173,59,0.22)',
-          borderRadius: '12px', padding: '1.2rem 1.6rem',
-          display: 'flex', gap: '1rem', alignItems: 'flex-start',
-        }}>
-          <span style={{ fontSize: '1.2rem', flexShrink: 0 }}>⚠️</span>
-          <div>
-            <div style={{
-              fontFamily: 'var(--font-sans)', fontWeight: 600,
-              fontSize: '0.85rem', color: 'var(--amber)', marginBottom: '0.3rem'
-            }}>
-              Research Prototype — Not for Clinical Use
+        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(235px,1fr))', gap: '1rem', margin: '2.5rem 0', padding: '1.5rem', borderRadius: 28, background: 'var(--surface-soft)', border: '1px solid rgba(15,23,42,0.08)', boxShadow: '0 24px 65px rgba(15,23,42,0.06)' }}>
+          {[
+            { title: 'Secure intake', desc: 'MRI validation, anonymized metadata, and encrypted upload handling.' },
+            { title: 'Explainable imaging', desc: 'AI prediction scores, Grad-CAM visibility, and uncertainty guidance.' },
+            { title: 'Tumor analytics', desc: 'ET/TC/WT volumetrics, radiomics, and scan-to-scan comparison.' },
+            { title: 'Professional reports', desc: 'Downloadable PDF summaries with images, metrics, and findings.' },
+          ].map((item) => (
+            <div key={item.title} style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 22, padding: '1.35rem 1.4rem', boxShadow: '0 20px 35px rgba(15,23,42,0.04)' }}>
+              <div style={{ fontWeight: 700, color: '#0F172A', marginBottom: '0.55rem' }}>{item.title}</div>
+              <div style={{ color: '#64748B', fontSize: '0.93rem', lineHeight: 1.7 }}>{item.desc}</div>
             </div>
-            <div style={{
-              fontFamily: 'var(--font-mono)', fontSize: '0.67rem',
-              color: 'rgba(255,173,59,0.6)', lineHeight: 1.75
-            }}>
-              NeuroScan AI is developed for educational and research purposes only.
-              It is not a certified medical device and must not be used to make clinical
-              decisions. All results must be verified by a qualified radiologist or neurologist.
+          ))}
+        </section>
+
+        <section style={{ maxWidth: 1040, margin: '0 auto', padding: '0 0 4rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: '1rem' }}>
+            {KEY_METRICS.map((m) => (
+              <div key={m.label} style={{ position: 'relative', background: '#FFFFFF', borderRadius: 22, border: '1px solid #E2E8F0', padding: '1.5rem 1.4rem', boxShadow: '0 24px 50px rgba(15,23,42,0.05)', minHeight: 180 }}>
+                <div style={{ position: 'absolute', top: 0, left: '12%', right: '12%', height: 3, background: `linear-gradient(90deg, transparent, ${m.color}, transparent)` }} />
+                <div style={{ fontSize: '2rem', fontWeight: 800, color: m.color, lineHeight: 1, marginBottom: '0.4rem' }}>{m.val}</div>
+                <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#0F172A', marginBottom: '0.55rem' }}>{m.label}</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: '#64748B', lineHeight: 1.7 }}>{m.sub}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section style={{ maxWidth: 1040, margin: '0 auto 2rem', padding: '1.25rem', borderRadius: 18, background: 'linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,255,1))', border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 20px 50px rgba(15,23,42,0.06)' }}>
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+            <div style={{ width: 56, height: 56, borderRadius: 12, background: 'var(--teal)', display: 'grid', placeItems: 'center', color: '#021012', fontWeight: 700 }}>🔒</div>
+            <div>
+              <div style={{ fontWeight: 800, marginBottom: '0.25rem', color: '#0F172A' }}>Security & privacy</div>
+              <div style={{ color: '#475569', lineHeight: 1.7 }}>
+                We prioritize patient data protection: encrypted uploads in transit and at rest, automatic DICOM PHI stripping, and short-term retention for research prototypes. For production deployments, NeuroScan supports strict access controls, role-based permissions, and audit logging.
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Timeline */}
-      <section style={{ maxWidth: 900, margin: '0 auto', padding: '0 2rem 4rem' }}>
-        <p className="eyebrow" style={{ marginBottom: '0.75rem' }}>Development</p>
-        <h2 style={{
-          fontSize: '1.8rem', letterSpacing: '-0.02em', marginBottom: '2.5rem'
-        }}>
-          How it was <span style={{ color: 'var(--teal)' }}>built</span>
-        </h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-          {TIMELINE.map((t, i) => (
-            <div key={t.phase} style={{
-              display: 'flex', gap: '1.5rem',
-              paddingBottom: i < TIMELINE.length - 1 ? '2rem' : 0
-            }}>
-              {/* Circle + line */}
-              <div style={{
-                display: 'flex', flexDirection: 'column',
-                alignItems: 'center', flexShrink: 0
-              }}>
-                <div style={{
-                  width: 36, height: 36, borderRadius: '50%',
-                  background: 'rgba(12,242,200,0.08)',
-                  border: '1px solid rgba(12,242,200,0.25)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontFamily: 'var(--font-mono)', fontSize: '0.62rem',
-                  color: 'var(--teal)', fontWeight: 500,
-                }}>{t.phase}</div>
-                {i < TIMELINE.length - 1 && (
-                  <div style={{
-                    width: 1, flex: 1,
-                    background: 'rgba(12,242,200,0.10)',
-                    margin: '4px 0'
-                  }} />
-                )}
+        <section style={{ maxWidth: 1040, margin: '0 auto', padding: '0 0 4rem' }}>
+          <div style={{ background: '#F8FAFF', border: '1px solid #E2E8F0', borderRadius: 18, padding: '1.5rem 1.6rem', display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: '1.4rem', flexShrink: 0 }}>⚠️</span>
+            <div>
+              <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: '0.95rem', color: '#0F172A', marginBottom: '0.25rem' }}>
+                Research prototype — not for clinical use
               </div>
-              {/* Text */}
-              <div style={{ paddingTop: '0.5rem' }}>
-                <div style={{
-                  fontFamily: 'var(--font-sans)', fontWeight: 600,
-                  fontSize: '0.95rem', color: 'var(--text)', marginBottom: '0.3rem'
-                }}>{t.title}</div>
-                <div style={{
-                  fontFamily: 'var(--font-mono)', fontSize: '0.69rem',
-                  color: 'var(--text-3)', lineHeight: 1.8
-                }}>{t.desc}</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.92rem', color: '#475569', lineHeight: 1.75 }}>
+                NeuroScan is a research and educational demonstration. It is not a certified medical device and should not be used as the sole basis for clinical decisions.
               </div>
             </div>
-          ))}
-        </div>
-      </section>
+          </div>
+        </section>
 
-      {/* Tech Stack */}
-      <section style={{ maxWidth: 900, margin: '0 auto', padding: '0 2rem 4rem' }}>
-        <p className="eyebrow" style={{ marginBottom: '0.75rem' }}>Technology</p>
-        <h2 style={{
-          fontSize: '1.8rem', letterSpacing: '-0.02em', marginBottom: '2rem'
-        }}>
-          Tech <span style={{ color: 'var(--teal)' }}>stack</span>
-        </h2>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
-          gap: '1rem'
-        }}>
-          {TECH_STACK.map((s) => (
-            <div key={s.cat} className="card" style={{ padding: '1.3rem 1.4rem' }}>
-              <div style={{
-                fontFamily: 'var(--font-mono)', fontSize: '0.56rem',
-                letterSpacing: '0.22em', textTransform: 'uppercase',
-                color: 'var(--teal)', marginBottom: '0.75rem', opacity: 0.8
-              }}>{s.cat}</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                {s.items.map((item) => (
-                  <div key={item} style={{
-                    display: 'flex', gap: '0.55rem', alignItems: 'center',
-                    fontFamily: 'var(--font-mono)', fontSize: '0.68rem',
-                    color: 'var(--text-2)'
-                  }}>
-                    <span style={{
-                      width: 4, height: 4, borderRadius: '50%',
-                      background: 'var(--teal)', opacity: 0.5, flexShrink: 0
-                    }} />
-                    {item}
+        <section style={{ maxWidth: 1040, margin: '0 auto', padding: '0 0 4rem' }}>
+          <div style={{ display: 'grid', gap: '1rem' }}>
+            {TIMELINE.map((item) => (
+              <div key={item.phase} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '1.2rem', alignItems: 'start', background: '#FFFFFF', borderRadius: 20, border: '1px solid #E2E8F0', padding: '1.4rem', boxShadow: '0 20px 40px rgba(15,23,42,0.04)' }}>
+                <div style={{ display: 'grid', gap: '0.75rem', justifyItems: 'center' }}>
+                  <div style={{ width: 44, height: 44, borderRadius: '50%', background: `${item.color}14`, border: `1px solid ${item.color}44`, display: 'grid', placeItems: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', fontWeight: 700, color: item.color }}>
+                    {item.phase}
                   </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Architecture */}
-      <section style={{ maxWidth: 900, margin: '0 auto', padding: '0 2rem 4rem' }}>
-        <p className="eyebrow" style={{ marginBottom: '0.75rem' }}>Architecture</p>
-        <h2 style={{
-          fontSize: '1.8rem', letterSpacing: '-0.02em', marginBottom: '2rem'
-        }}>
-          System <span style={{ color: 'var(--teal)' }}>design</span>
-        </h2>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: '1rem'
-        }}>
-          {[
-            { layer: 'Frontend', color: '#0CF2C8', items: ['React 18', 'Hosted on Vercel', 'Supabase Auth', 'All 6 pages'] },
-            { layer: 'Backend / AI', color: '#7B82F5', items: ['Python + Streamlit', 'TFLite inference', 'Grad-CAM XAI', 'Streamlit Cloud'] },
-            { layer: 'Database', color: '#FFAD3B', items: ['Supabase PostgreSQL', 'User profiles', 'Scan history', 'Row-level security'] },
-          ].map((a) => (
-            <div key={a.layer} className="card" style={{ padding: '1.4rem' }}>
-              <div style={{
-                position: 'absolute', top: 0, left: '15%', right: '15%', height: 1,
-                background: `linear-gradient(90deg, transparent, ${a.color}88, transparent)`
-              }} />
-              <div style={{
-                fontFamily: 'var(--font-serif)', fontStyle: 'italic',
-                fontSize: '1.4rem', fontWeight: 300, color: a.color, marginBottom: '0.8rem'
-              }}>{a.layer}</div>
-              {a.items.map((item) => (
-                <div key={item} style={{
-                  display: 'flex', gap: '0.55rem', alignItems: 'center',
-                  fontFamily: 'var(--font-mono)', fontSize: '0.67rem',
-                  color: 'var(--text-3)', lineHeight: 1.8
-                }}>
-                  <span style={{
-                    width: 4, height: 4, borderRadius: '50%',
-                    background: a.color, flexShrink: 0
-                  }} />
-                  {item}
+                  <div style={{ width: 2, background: 'rgba(37,99,235,0.15)', flex: 1, minHeight: 60 }} />
                 </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      </section>
+                <div>
+                  <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0F172A', marginBottom: '0.45rem' }}>{item.title}</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.9rem', color: '#64748B', lineHeight: 1.75 }}>{item.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
 
-      <footer style={{
-        borderTop: '1px solid var(--border)', padding: '2rem', textAlign: 'center',
-        fontFamily: 'var(--font-mono)', fontSize: '0.58rem',
-        color: 'var(--text-3)', letterSpacing: '0.2em', textTransform: 'uppercase'
-      }}>
-        NeuroScan AI · Research prototype · Not for clinical use · © 2026
+        <section style={{ maxWidth: 1040, margin: '0 auto', padding: '0 0 4rem' }}>
+          <p style={{ fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.28em', color: '#2563EB', marginBottom: '0.85rem', fontSize: '0.8rem' }}>Technology</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: '1rem' }}>
+            {TECH_STACK.map((stack) => (
+              <div key={stack.cat} style={{ background: '#FFFFFF', borderRadius: 20, border: '1px solid #E2E8F0', padding: '1.4rem', boxShadow: '0 20px 40px rgba(15,23,42,0.04)' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', letterSpacing: '0.22em', textTransform: 'uppercase', color: stack.color, marginBottom: '1rem' }}>{stack.cat}</div>
+                <div style={{ display: 'grid', gap: '0.55rem' }}>
+                  {stack.items.map((item) => (
+                    <div key={item} style={{ display: 'flex', gap: '0.55rem', alignItems: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.88rem', color: '#475569' }}>
+                      <span style={{ width: 5, height: 5, borderRadius: '50%', background: stack.color, flexShrink: 0 }} />
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section id="contact" style={{ maxWidth: 1040, margin: '2.25rem auto', padding: '2.25rem', borderRadius: 22, background: 'rgba(255,255,255,0.98)', border: '1px solid rgba(15,23,42,0.08)', boxShadow: '0 25px 60px rgba(15,23,42,0.06)' }}>
+          <h2 style={{ fontSize: '1.4rem', marginBottom: '0.5rem', fontWeight: 800, color: '#0F172A' }}>Contact & Support</h2>
+          <p style={{ color: '#475569', marginBottom: '1rem' }}>For partnership inquiries, research access, or technical support, reach out to our team using the channels below. We aim to respond within one business day.</p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: '1rem' }}>
+            <div>
+              <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Email</div>
+              <a href="mailto:neuroscanai@gmail.com" style={{ color: '#2563EB', textDecoration: 'none', fontWeight: 600 }}>neuroscanai@gmail.com</a>
+            </div>
+
+            <div>
+              <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Phone</div>
+              <div style={{ color: '#475569' }}>+1 (555) 123-4567</div>
+            </div>
+
+            <div>
+              <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Address</div>
+              <div style={{ color: '#475569' }}>123 Neuro Ave, Suite 400, Neurocity, NY 10001</div>
+            </div>
+
+            <div>
+              <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Support hours</div>
+              <div style={{ color: '#475569' }}>Mon–Fri, 09:00–17:00 (IST)</div>
+            </div>
+          </div>
+        </section>
+
+      </main>
+
+      <footer style={{ background: '#F8FAFF', padding: '2rem 1.5rem', textAlign: 'center' }}>
+        <div style={{ fontWeight: 700, color: '#0F172A', marginBottom: '0.5rem' }}>NeuroScan Medical</div>
+        <div style={{ color: '#475569', fontSize: '0.95rem' }}>Secure MRI review · Explainable AI · Care-ready reporting</div>
+        <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#64748B' }}>Research prototype — not for clinical use</div>
       </footer>
     </div>
   )
