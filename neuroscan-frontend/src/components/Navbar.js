@@ -1,5 +1,4 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { useState } from 'react'
 import { useAuth } from '../App'
 import { supabase, hasSupabaseConfig } from '../lib/supabase'
 

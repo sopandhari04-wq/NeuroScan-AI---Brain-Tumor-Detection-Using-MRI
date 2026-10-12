@@ -227,11 +227,13 @@ export default function Scanner() {
         {/* Streamlit iframe with embed params */}
         {!blocked && (
           <iframe
-            ref={iframeRef}
+            ref={(el) => {
+              iframeRef.current = el
+              if (el) handleIframeMount()
+            }}
             src={embedUrl}
             title="NeuroScan AI Scanner"
             onLoad={handleLoad}
-            ref={(el) => { iframeRef.current = el; if (el) handleIframeMount() }}
             style={{
               flex: 1, width: '100%',
               height: fullscreen

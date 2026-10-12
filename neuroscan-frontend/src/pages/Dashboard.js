@@ -54,17 +54,25 @@ export default function Dashboard() {
 
   useEffect(() => {
     async function fetchScans() {
-    const username = user.email?.split('@')[0]
-const { data, error } = await supabase
-  .from('scans')
-  .select('*')
-  .eq('username', username)
-  .order('date', { ascending: false })  
+      const username = user?.email?.split('@')[0]
+      if (!username) {
+        setScans([])
+        setLoading(false)
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('scans')
+        .select('*')
+        .eq('username', username)
+        .order('date', { ascending: false })
+
       if (!error && data) setScans(data)
       setLoading(false)
     }
+
     fetchScans()
-  }, [user.id])
+  }, [user?.email])
 
   const total   = scans.length
   const tumors  = scans.filter(s => s.prediction !== 'notumor').length
