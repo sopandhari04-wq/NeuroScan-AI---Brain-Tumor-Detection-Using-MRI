@@ -2,10 +2,13 @@ import os
 import io
 import cv2
 import numpy as np
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 from datetime import datetime, timezone, timedelta
 from io import BytesIO
 import matplotlib.pyplot as plt
+from pydicom import dcmread
+from pydicom.errors import InvalidDicomError
+from pydicom.pixels import apply_modality_lut, apply_voi_lut
 
 from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -209,7 +212,66 @@ def analyze_gradcam(cam, predicted_cls, confidence):
     }
 
 def pil_from_upload(file_bytes: bytes) -> Image.Image:
-    return Image.open(BytesIO(file_bytes)).convert("RGB")
+    try:
+        return Image.open(BytesIO(file_bytes)).convert("RGB")
+    except UnidentifiedImageError:
+        pass
+    except (OSError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail="Uploaded file is not a valid supported image.") from exc
+
+    try:
+        dataset = dcmread(BytesIO(file_bytes), force=True)
+    except (InvalidDicomError, OSError, ValueError) as exc:
+        raise HTTPException(
+            status_code=400,
+            detail="Uploaded file is not a supported image or DICOM scan.",
+        ) from exc
+
+    if "PixelData" not in dataset:
+        raise HTTPException(status_code=400, detail="DICOM file does not contain image pixel data.")
+
+    try:
+        pixels = dataset.pixel_array
+    except (AttributeError, IndexError, NotImplementedError, RuntimeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=400,
+            detail="DICOM pixel data could not be decoded. The file may use an unsupported compression format.",
+        ) from exc
+
+    samples_per_pixel = int(getattr(dataset, "SamplesPerPixel", 1))
+    if samples_per_pixel == 1:
+        if pixels.ndim == 3:
+            pixels = pixels[pixels.shape[0] // 2]
+        elif pixels.ndim != 2:
+            raise HTTPException(status_code=400, detail="DICOM scan has an unsupported image shape.")
+
+        try:
+            pixels = apply_modality_lut(pixels, dataset)
+            pixels = apply_voi_lut(pixels, dataset)
+        except (IndexError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail="DICOM scan has invalid image intensity metadata.") from exc
+
+        pixels = np.asarray(pixels, dtype=np.float32)
+        if not np.isfinite(pixels).all():
+            raise HTTPException(status_code=400, detail="DICOM scan contains invalid pixel values.")
+
+        low = float(pixels.min())
+        high = float(pixels.max())
+        if high <= low:
+            raise HTTPException(status_code=400, detail="DICOM scan has no usable pixel intensity range.")
+
+        pixels = np.clip((pixels - low) * (255.0 / (high - low)), 0, 255).astype(np.uint8)
+        if getattr(dataset, "PhotometricInterpretation", "") == "MONOCHROME1":
+            pixels = 255 - pixels
+        return Image.fromarray(pixels).convert("RGB")
+
+    if pixels.ndim == 4:
+        pixels = pixels[pixels.shape[0] // 2]
+    if pixels.ndim != 3 or pixels.shape[-1] not in (3, 4):
+        raise HTTPException(status_code=400, detail="DICOM scan has an unsupported color image shape.")
+
+    pixels = np.asarray(np.clip(pixels, 0, 255), dtype=np.uint8)
+    return Image.fromarray(pixels).convert("RGB")
 
 def preprocess(pil_img: Image.Image) -> np.ndarray:
     img_resized = pil_img.resize((128, 128))
@@ -509,8 +571,7 @@ async def predict_fusion(
     imgs = []
     for f in [t1, t1ce, t2, flair]:
         contents = await f.read()
-        pil_img  = Image.open(BytesIO(contents)).convert("RGB")
-        imgs.append(pil_img)
+        imgs.append(pil_from_upload(contents))
 
     gray_arrays = [np.array(p.convert("L").resize((128,128)), dtype=np.float32)/255.0 for p in imgs]
     fused_4ch   = np.stack(gray_arrays, axis=-1)

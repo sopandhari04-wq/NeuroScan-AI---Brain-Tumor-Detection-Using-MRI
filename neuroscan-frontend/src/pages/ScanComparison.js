@@ -139,10 +139,14 @@ export default function ScanComparison() {
       fd.append('username', username)
       fd.append('gradcam', 'true')
       const res  = await fetch(`${API}/api/predict`, { method: 'POST', headers: token ? { 'Authorization': `Bearer ${token}` } : {}, body: fd })
-      const data = await res.json()
+      const data = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(data?.detail || `AI backend returned HTTP ${res.status}.`)
+      if (!data) throw new Error('AI backend returned an invalid response.')
       setResult({ ...data, mode: 'Single MRI' })
-    } catch {
-      setError('Failed to connect to AI backend.')
+    } catch (err) {
+      setError(err instanceof Error && err.message !== 'Failed to fetch'
+        ? err.message
+        : 'Failed to connect to AI backend.')
     } finally {
       setLoading(false)
     }
