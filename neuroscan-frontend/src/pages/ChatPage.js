@@ -231,8 +231,8 @@ export default function ChatPage() {
             rows={1}
             style={{
               flex: 1, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: '12px', color: 'var(--text-1)', fontFamily: 'var(--font-mono)',
-              fontSize: '0.78rem', padding: '0.75rem 1rem', outline: 'none', resize: 'none',
+              borderRadius: '12px', color: '#ffffff',caretColor: '#00e0c8', fontFamily: 'var(--font-mono)',
+              fontSize: '0.95rem', padding: '0.75rem 1rem', outline: 'none', resize: 'none',
               lineHeight: 1.6, boxSizing: 'border-box',
             }}
             onInput={e => { e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px' }}
