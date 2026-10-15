@@ -157,14 +157,18 @@ export default function Scanner() {
       fd.append('username', username)
       fd.append('gradcam', 'true')
       const res  = await fetch(`${API}/api/predict`, { method: 'POST',  headers: token ? { 'Authorization': `Bearer ${token}` } : {},body: fd })
-      const data = await res.json()
+      const data = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(data?.detail || `AI backend returned HTTP ${res.status}.`)
+      if (!data) throw new Error('AI backend returned an invalid response.')
       setResult({ ...data, mode: 'Single MRI' })
       console.log('DICOM INFO:', data.dicom_info)
       console.log('UNCERTAINTY:', data.uncertainty)
       console.log('PREPROCESSING:', data.preprocessing)
       fetchRecentScans(username, setRecentScans)
-    } catch {
-      setError('Failed to connect to AI backend. Please try again.')
+    } catch (err) {
+      setError(err instanceof Error && err.message !== 'Failed to fetch'
+        ? err.message
+        : 'Failed to connect to AI backend. Please try again.')
     } finally { setLoading(false) }
   }
 
@@ -181,11 +185,15 @@ export default function Scanner() {
       fd.append('username', username)
       fd.append('gradcam', 'true')
       const res  = await fetch(`${API}/api/predict/fusion`, { method: 'POST',  headers: token ? { 'Authorization': `Bearer ${token}` } : {}, body: fd })
-      const data = await res.json()
+      const data = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(data?.detail || `AI backend returned HTTP ${res.status}.`)
+      if (!data) throw new Error('AI backend returned an invalid response.')
       setResult({ ...data, mode: 'Multi-Modal Fusion' })
       fetchRecentScans(username, setRecentScans)
-    } catch {
-      setError('Failed to connect to AI backend. Please try again.')
+    } catch (err) {
+      setError(err instanceof Error && err.message !== 'Failed to fetch'
+        ? err.message
+        : 'Failed to connect to AI backend. Please try again.')
     } finally { setLoading(false) }
   }
   
