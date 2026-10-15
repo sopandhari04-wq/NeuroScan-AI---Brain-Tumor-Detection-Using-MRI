@@ -1426,7 +1426,7 @@ async def chat(request: Request):
         question    = body.get("question", "")
         scan_context = body.get("scan_context", {})
 
-        groq_api_key = os.environ.get("GROQ_API_KEY", "")
+        groq_api_key = os.environ.get("GROQ_API_KEY", "").strip()
         if not groq_api_key:
             raise HTTPException(status_code=500, detail="Groq API key not set")
 
@@ -1474,10 +1474,16 @@ Rules:
                 timeout=30.0
             )
             data = response.json()
+            if response.status_code != 200 or "choices" not in data:
+                print("GROQ ERROR:", response.status_code, data)
+                raise HTTPException(status_code=502, detail=f"Groq error: {data}")
             answer = data["choices"][0]["message"]["content"]
             return {"answer": answer}
 
+    except HTTPException:
+        raise
     except Exception as e:
+        print("CHAT ERROR:", repr(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/")
