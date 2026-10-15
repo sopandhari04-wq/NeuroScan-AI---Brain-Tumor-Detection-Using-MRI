@@ -965,7 +965,7 @@ def generate_pdf(predicted_cls, confidence, mode, username, user_name, scan_hist
         Spacer(1, 8),
         Paragraph("Radiological Companion Report &nbsp;·&nbsp; AI-Assisted MRI Brain Tumor Analysis", meta_s),
         Spacer(1, 10),
-        Paragraph("Executive summary", summary_s),
+        
     ]
     elems.append(Spacer(1, 8))
     elems.append(Table([['']], colWidths=[500], rowHeights=[2], style=TableStyle([('BACKGROUND', (0,0), (-1,-1), accent)])))
